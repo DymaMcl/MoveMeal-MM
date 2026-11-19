@@ -7,6 +7,7 @@ export function errorKey(error: unknown): string {
     case 'ai_unavailable':
       return 'errors.aiUnavailable';
     case 'ai_busy':
+      return 'errors.aiBusy';
     case 'ai_failed':
       return 'errors.aiFailed';
     case 'ai_blocked':

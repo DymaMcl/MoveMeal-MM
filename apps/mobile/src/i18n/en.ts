@@ -33,6 +33,7 @@ export const en: Dictionary = {
   },
   errors: {
     aiUnavailable: 'The AI assistant is not available right now.',
+    aiBusy: 'The AI service is very busy right now. Please try again in a minute.',
     aiFailed: 'The AI service did not respond. Please try again in a moment.',
     aiBlocked: 'This request cannot be processed. Try rephrasing or another photo.',
     aiLimit: 'You have reached the daily limit for AI features. Try again tomorrow.',

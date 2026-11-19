@@ -31,6 +31,7 @@ export const ro = {
   },
   errors: {
     aiUnavailable: 'Asistentul AI nu este disponibil acum.',
+    aiBusy: 'Serviciul AI este foarte solicitat acum. Încearcă din nou peste un minut.',
     aiFailed: 'Serviciul AI nu a răspuns. Încearcă din nou peste puțin timp.',
     aiBlocked: 'Cererea nu poate fi procesată. Încearcă altă formulare sau altă fotografie.',
     aiLimit: 'Ai atins limita zilnică pentru funcțiile AI. Încearcă din nou mâine.',

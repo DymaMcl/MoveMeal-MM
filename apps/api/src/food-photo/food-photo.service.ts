@@ -186,9 +186,11 @@ export class FoodPhotoService {
     }
     const refund = await this.usage.consume(userId, 'photo');
     let result: { isFood?: unknown; dish?: unknown; items?: unknown };
+    let model: string;
     try {
-      result = await this.gemini.json({
-        model: this.gemini.visionModel,
+      // Modelul pentru imagini; daca este supraincarcat, raspunde modelul de chat (accepta si imagini).
+      ({ data: result, model } = await this.gemini.json<typeof result>({
+        models: [this.gemini.visionModel, this.gemini.chatModel],
         system: systemPrompt(language),
         contents: [
           {
@@ -199,8 +201,9 @@ export class FoodPhotoService {
         schema: SCHEMA,
         temperature: 0.2,
         maxOutputTokens: 2048,
-        timeoutMs: 45_000,
-      });
+        timeoutMs: 20_000,
+        totalTimeoutMs: 60_000,
+      }));
     } catch (error) {
       await refund();
       throw error;
@@ -212,7 +215,7 @@ export class FoodPhotoService {
       const { rows } = await c.query<{ id: string }>(
         `insert into food_photos (user_id, dish, items, model)
          values (app_user_id(), $1, $2, $3) returning id`,
-        [dish, JSON.stringify(items), this.gemini.visionModel],
+        [dish, JSON.stringify(items), model],
       );
       return rows[0].id;
     });

@@ -41,6 +41,8 @@ describe('Asistentul AI si fotografierea mesei (e2e, Gemini simulat)', () => {
   let gemini: Server;
   const calls: GeminiCall[] = [];
   let nextStatus = 200;
+  /** Modelul simulat ca supraincarcat (503). */
+  let busyModel = '';
   const emails: string[] = [];
   const http = () => request(app.getHttpServer());
 
@@ -82,8 +84,9 @@ describe('Asistentul AI si fotografierea mesei (e2e, Gemini simulat)', () => {
         const body = JSON.parse(raw) as GeminiCall['body'];
         calls.push({ path: req.url ?? '', key: req.headers['x-goog-api-key'] as string, body });
         res.setHeader('Content-Type', 'application/json');
-        if (nextStatus !== 200) {
-          res.statusCode = nextStatus;
+        const busy = busyModel !== '' && (req.url ?? '').includes(busyModel);
+        if (nextStatus !== 200 || busy) {
+          res.statusCode = busy ? 503 : nextStatus;
           res.end(JSON.stringify({ error: { message: 'simulat' } }));
           return;
         }
@@ -154,6 +157,7 @@ describe('Asistentul AI si fotografierea mesei (e2e, Gemini simulat)', () => {
   beforeEach(() => {
     calls.length = 0;
     nextStatus = 200;
+    busyModel = '';
   });
 
   it('raspunde cu Gemini folosind datele zilei, fara e-mail, si numara cererile', async () => {
@@ -289,6 +293,26 @@ describe('Asistentul AI si fotografierea mesei (e2e, Gemini simulat)', () => {
       .set('Authorization', other.auth)
       .send({ day, meal: 'lunch', items: [{ index: 0, grams: 100 }] })
       .expect(404);
+  });
+
+  it('repeta cererea si trece la modelul de rezerva cand modelul principal este ocupat', async () => {
+    const user = await account('Victor');
+    busyModel = 'gemini-3.8-flash';
+    const analysis = await http()
+      .post('/api/me/food-photo')
+      .set('Authorization', user.auth)
+      .send({ image: IMAGE, mimeType: 'image/jpeg', language: 'ro' })
+      .expect(200);
+    expect(analysis.body.items).toHaveLength(3);
+    expect(calls.map((c) => c.path.split('/models/')[1])).toEqual([
+      'gemini-3.8-flash:generateContent',
+      'gemini-3.8-flash:generateContent',
+      'gemini-3.5-flash-lite:generateContent',
+    ]);
+    const { rows } = await owner.query('select model from food_photos where id = $1', [
+      analysis.body.id,
+    ]);
+    expect(rows[0].model).toBe('gemini-3.5-flash-lite');
   });
 
   it('refuza imaginile invalide', async () => {

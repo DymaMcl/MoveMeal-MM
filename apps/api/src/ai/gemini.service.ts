@@ -1,4 +1,5 @@
 import { HttpException, Injectable, Logger } from '@nestjs/common';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { loadEnv } from '../config.js';
 
 export interface GeminiPart {
@@ -23,13 +24,34 @@ interface GenerateResponse {
   promptFeedback?: { blockReason?: string };
 }
 
+export interface GeminiResult<T> {
+  data: T;
+  /** Modelul care a raspuns (poate fi cel de rezerva). */
+  model: string;
+}
+
+/**
+ * Rezultatul unei incercari:
+ * retry = acelasi model, dupa o pauza (supraincarcare temporara);
+ * next = modelul urmator (modelul nu raspunde, nu exista sau raspunsul nu poate fi citit).
+ */
+type Attempt<T> =
+  | { kind: 'ok'; data: T }
+  | { kind: 'retry' }
+  | { kind: 'next' }
+  | { kind: 'fail'; error: HttpException };
+
 export const DEFAULT_CHAT_MODEL = 'gemini-3.5-flash-lite';
 export const DEFAULT_VISION_MODEL = 'gemini-3.8-flash';
+/** Incercari pe acelasi model cand Google raspunde „ocupat” (429/500/503). */
+const ATTEMPTS_PER_MODEL = 2;
+const RETRY_DELAY_MS = 700;
 
 /**
  * Clientul pentru Google Gemini (API REST generateContent). Cheia ramane pe server
  * (aplicatia mobila nu o cunoaste), iar raspunsul este cerut in format JSON cu o schema fixa,
- * ca serverul sa poata valida tot ce primeste de la model.
+ * ca serverul sa poata valida tot ce primeste de la model. Cand un model este supraincarcat,
+ * cererea se repeta, apoi trece la modelul de rezerva.
  */
 @Injectable()
 export class GeminiService {
@@ -55,18 +77,22 @@ export class GeminiService {
   }
 
   async json<T>(request: {
-    model: string;
+    /** Modelul principal, apoi cele de rezerva. */
+    models: string[];
     system: string;
     contents: GeminiContent[];
     schema: Record<string, unknown>;
     temperature?: number;
     maxOutputTokens?: number;
+    /** Timpul maxim pentru o incercare. */
     timeoutMs?: number;
-  }): Promise<T> {
+    /** Timpul maxim pentru toate incercarile. */
+    totalTimeoutMs?: number;
+  }): Promise<GeminiResult<T>> {
     if (!this.key) {
       throw aiError(503, 'ai_unavailable', 'Serviciul AI nu este configurat pe server.');
     }
-    const body = {
+    const body = JSON.stringify({
       systemInstruction: { parts: [{ text: request.system }] },
       contents: request.contents,
       generationConfig: {
@@ -75,45 +101,72 @@ export class GeminiService {
         responseMimeType: 'application/json',
         responseJsonSchema: request.schema,
       },
-    };
+    });
+    const deadline = Date.now() + (request.totalTimeoutMs ?? 60_000);
+    let busy = false;
 
+    for (const model of [...new Set(request.models)]) {
+      for (let attempt = 1; attempt <= ATTEMPTS_PER_MODEL; attempt++) {
+        const left = deadline - Date.now();
+        if (left < 2_000) break;
+        const result = await this.attempt<T>(
+          model,
+          body,
+          Math.min(request.timeoutMs ?? 30_000, left),
+        );
+        if (result.kind === 'ok') return { data: result.data, model };
+        if (result.kind === 'fail') throw result.error;
+        if (result.kind === 'next') break;
+        busy = true;
+        if (attempt < ATTEMPTS_PER_MODEL) await sleep(RETRY_DELAY_MS * attempt);
+      }
+    }
+    throw busy
+      ? aiError(503, 'ai_busy', 'Serviciul AI este foarte solicitat acum. Incearca peste un minut.')
+      : aiError(503, 'ai_failed', 'Serviciul AI nu raspunde. Incearca din nou.');
+  }
+
+  private async attempt<T>(model: string, body: string, timeoutMs: number): Promise<Attempt<T>> {
     let res: Response;
     try {
-      res = await fetch(
-        `${this.baseUrl}/models/${encodeURIComponent(request.model)}:generateContent`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.key },
-          body: JSON.stringify(body),
-          signal: AbortSignal.timeout(request.timeoutMs ?? 30_000),
-        },
-      );
+      res = await fetch(`${this.baseUrl}/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': this.key! },
+        body,
+        signal: AbortSignal.timeout(timeoutMs),
+      });
     } catch (error) {
-      this.logger.warn(`Gemini nu raspunde: ${(error as Error).name}`);
-      throw aiError(503, 'ai_failed', 'Serviciul AI nu raspunde. Incearca din nou.');
+      this.logger.warn(`${model} nu raspunde (${(error as Error).name})`);
+      return { kind: 'next' };
     }
 
-    if (res.status === 429) {
-      throw aiError(503, 'ai_busy', 'Serviciul AI este ocupat. Incearca peste un minut.');
-    }
     if (!res.ok) {
       // Se inregistreaza doar starea si mesajul Google, nu continutul trimis de utilizator.
-      const detail = await res.text().catch(() => '');
-      this.logger.warn(`Gemini ${res.status}: ${detail.slice(0, 300)}`);
-      throw aiError(502, 'ai_failed', 'Serviciul AI a returnat o eroare.');
+      const detail = (await res.json().catch(() => ({}))) as { error?: { message?: string } };
+      this.logger.warn(`${model} ${res.status}: ${(detail.error?.message ?? '').slice(0, 200)}`);
+      if ([429, 500, 503, 504].includes(res.status)) return { kind: 'retry' };
+      if (res.status === 401 || res.status === 403) {
+        return {
+          kind: 'fail',
+          error: aiError(503, 'ai_unavailable', 'Cheia Gemini este invalida sau nu are acces.'),
+        };
+      }
+      return { kind: 'next' };
     }
 
     const data = (await res.json().catch(() => ({}))) as GenerateResponse;
     const candidate = data.candidates?.[0];
-    const text = (candidate?.content?.parts ?? []).map((p) => p.text ?? '').join('');
     if (data.promptFeedback?.blockReason || candidate?.finishReason === 'SAFETY') {
-      throw aiError(422, 'ai_blocked', 'Cererea nu poate fi procesata.');
+      return { kind: 'fail', error: aiError(422, 'ai_blocked', 'Cererea nu poate fi procesata.') };
     }
+    const text = (candidate?.content?.parts ?? []).map((p) => p.text ?? '').join('');
     try {
-      return JSON.parse(stripFences(text)) as T;
+      return { kind: 'ok', data: JSON.parse(stripFences(text)) as T };
     } catch {
-      this.logger.warn(`Raspuns Gemini invalid (finishReason ${candidate?.finishReason ?? '-'})`);
-      throw aiError(502, 'ai_failed', 'Raspunsul serviciului AI nu a putut fi citit.');
+      this.logger.warn(
+        `${model}: raspuns invalid (finishReason ${candidate?.finishReason ?? '-'})`,
+      );
+      return { kind: 'next' };
     }
   }
 }

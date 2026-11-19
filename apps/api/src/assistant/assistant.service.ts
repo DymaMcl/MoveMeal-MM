@@ -113,13 +113,15 @@ export class AssistantService {
       parts: [{ text: m.text }],
     }));
     try {
-      const result = await this.gemini.json<{ reply?: unknown; action?: unknown }>({
-        model: this.gemini.chatModel,
+      const { data: result } = await this.gemini.json<{ reply?: unknown; action?: unknown }>({
+        models: [this.gemini.chatModel, this.gemini.visionModel],
         system: systemPrompt(language, context),
         contents,
         schema: REPLY_SCHEMA,
         temperature: 0.5,
         maxOutputTokens: 800,
+        timeoutMs: 20_000,
+        totalTimeoutMs: 45_000,
       });
       const reply = typeof result.reply === 'string' ? result.reply.trim().slice(0, 2000) : '';
       if (!reply) throw aiError(502, 'ai_failed', 'Raspuns gol de la serviciul AI.');
