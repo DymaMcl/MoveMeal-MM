@@ -20,10 +20,11 @@ const MAX_DAILY_SURPLUS = 500;
 /** Surplus moderat folosit pentru dezvoltarea masei musculare. */
 const MUSCLE_SURPLUS_RATIO = 0.1;
 
+/** Tabelul 1.2 din Laboratorul 2: 1,8 g/kg la slabire si crestere, 1,4 g/kg la mentinere. */
 const PROTEIN_G_PER_KG: Record<Goal, number> = {
-  lose: 2.0,
+  lose: 1.8,
   muscle: 1.8,
-  gain: 1.6,
+  gain: 1.8,
   maintain: 1.4,
 };
 const FAT_SHARE = 0.25;
