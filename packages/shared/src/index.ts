@@ -4,3 +4,4 @@ export * from './energy.ts';
 export * from './goal.ts';
 export * from './workout/index.ts';
 export * from './nutrition/index.ts';
+export * from './progress.ts';
