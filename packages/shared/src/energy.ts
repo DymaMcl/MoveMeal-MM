@@ -1,4 +1,4 @@
-import type { ActivityLevel, BodyData, EnergyPlan, EnergyProfile, Goal, Macros } from './types';
+import type { ActivityLevel, BodyData, EnergyPlan, EnergyProfile, Goal, Macros } from './types.ts';
 
 /** Energia aproximativă stocată într-un kilogram de țesut adipos (kcal). */
 export const KCAL_PER_KG = 7700;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkWeightGoal, maxSafeLossPerWeek, minHealthyWeight } from './goal';
+import { checkWeightGoal, maxSafeLossPerWeek, minHealthyWeight } from './goal.ts';
 
 describe('checkWeightGoal', () => {
   it('acceptă un ritm rezonabil de slăbire', () => {

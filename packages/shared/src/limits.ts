@@ -1,4 +1,4 @@
-import type { BodyData } from './types';
+import type { BodyData } from './types.ts';
 
 export const LIMITS = {
   age: { min: 16, max: 100 },

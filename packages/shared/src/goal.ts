@@ -1,4 +1,4 @@
-import { bmi } from './limits';
+import { bmi } from './limits.ts';
 
 export type GoalCheckStatus =
   | 'ok'

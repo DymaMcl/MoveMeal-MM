@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateBmr, calculateEnergyPlan, calculateMacros, MIN_CALORIES } from './energy';
+import { calculateBmr, calculateEnergyPlan, calculateMacros, MIN_CALORIES } from './energy.ts';
 
 const male = { age: 25, sex: 'male' as const, heightCm: 180, weightKg: 80 };
 const female = { age: 30, sex: 'female' as const, heightCm: 165, weightKg: 60 };
