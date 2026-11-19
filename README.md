@@ -24,26 +24,30 @@ Ulterior: site web separat pentru blog, panoul administratorului și panoul nutr
 
 ## Pornire
 
+Prima dată:
+
 ```bash
 npm install
-
-# 1. baza de date (o singură dată: completează parolele în .env)
-cp .env.example .env   # POSTGRES_PASSWORD și APP_DB_PASSWORD
-docker compose up -d
-npm run db:migrate --workspace=@movemeal/api
-
-# 2. serverul (http://localhost:3000/api/health)
-npm run api
-
-# 3. aplicația mobilă (în terminal apasă „a” pentru emulatorul Android)
-npm run mobile
+cp .env.example .env   # completează POSTGRES_PASSWORD și APP_DB_PASSWORD
 ```
 
-Aplicația se conectează la serverul de pe același calculator pe care rulează Expo (portul 3000).
+Apoi, de fiecare dată, cu Docker Desktop pornit:
+
+```bash
+npm run dev
+```
+
+Comanda pornește baza de date, aplică migrările, pornește serverul (portul 3000) și Expo.
+În terminalul Expo apasă **a** pentru emulatorul Android sau scanează codul QR cu telefonul.
+
+- **iPhone:** vezi [docs/iphone.md](docs/iphone.md) (prin Expo Go, fără Mac).
+- **Android:** instalează Expo Go din Play Store și scanează codul QR din aplicație.
+
+Aplicația se conectează la serverul de pe calculatorul pe care rulează Expo.
 Adresa poate fi schimbată cu variabila `EXPO_PUBLIC_API_URL`.
 
-Pe iPhone: instalează **Expo Go** din App Store și scanează codul QR afișat de `npm run mobile`
-(telefonul și calculatorul trebuie să fie în aceeași rețea).
+Părțile pot fi pornite și separat: `npm run api`, `npm run mobile`,
+`npm run db:migrate --workspace=@movemeal/api`.
 
 ## Teste
 
@@ -66,7 +70,11 @@ npm run typecheck                                            # verificarea tipur
 - [x] Conturi și sesiuni pe server (parole scrypt, blocare după 5 încercări greșite)
 - [x] PostgreSQL cu Row Level Security: fiecare utilizator accesează doar datele proprii
 - [x] Profilul salvat pe server: `GET/PUT /api/me/profile`
-- [ ] Programul de antrenament
+- [x] Programul de antrenament: chestionar (loc, nivel, zile, echipament, sporturi, limitări, accent),
+      generator automat, calendarul săptămânii, bifarea exercițiilor efectuate
+- [x] Biblioteca de exerciții (50 de exerciții, pe grupe musculare și dificultate)
+- [x] Rulare pe iPhone prin Expo Go
+- [ ] Animații proprii pentru exerciții (acum: alternarea pozițiilor de start și final)
 - [ ] Planul alimentar și rețetele
 - [ ] Jurnalul alimentar și recunoașterea alimentelor din fotografie
 - [ ] Nutriționist și programări
