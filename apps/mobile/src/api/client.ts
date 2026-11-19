@@ -67,21 +67,34 @@ async function request<T>(
   return data as T;
 }
 
+export type Role = 'user' | 'nutritionist' | 'admin';
+
 export interface AuthResponse {
   token: string;
-  user: { id: string; email: string };
+  user: { id: string; email: string; role: Role };
+}
+
+export interface Me {
+  id: string;
+  email: string;
+  role: Role;
+  healthDataConsent: boolean;
 }
 
 export interface ProfileResponse {
   profile: EnergyProfile & { name: string };
   plan: EnergyPlan;
-  /** Tinta calorica a fost modificata printr-o ajustare acceptata. */
+  /** Tinta calorica a fost modificata printr-o ajustare acceptata sau de nutritionist. */
   adjusted?: boolean;
+  adjustedBy?: 'adjustment' | 'nutritionist' | null;
+  nutritionistNote?: string | null;
 }
 
 export interface NutritionProgram {
   preferences: NutritionPreferences;
   plan: MealPlan;
+  /** Planul a fost regenerat de nutritionist (data ajustarii). */
+  adjustedByNutritionistAt?: string | null;
 }
 
 export type LogMeal = 'breakfast' | 'lunch' | 'dinner' | 'snack';
@@ -119,8 +132,7 @@ export const api = {
   login: (email: string, password: string) =>
     request<AuthResponse>('/auth/login', { method: 'POST', body: { email, password } }),
   logout: (token: string) => request<void>('/auth/logout', { method: 'POST', token }),
-  me: (token: string) =>
-    request<{ id: string; email: string; healthDataConsent: boolean }>('/me', { token }),
+  me: (token: string) => request<Me>('/me', { token }),
   getProfile: (token: string) => request<ProfileResponse>('/me/profile', { token }),
   saveProfile: (token: string, profile: EnergyProfile & { name: string }) =>
     request<ProfileResponse>('/me/profile', { method: 'PUT', body: profile, token }),
@@ -189,7 +201,242 @@ export const api = {
     }),
   rejectAdjustment: (token: string) =>
     request<void>('/me/progress/adjustment/reject', { method: 'POST', token }),
+
+  // Notificari
+  notifications: (token: string) =>
+    request<{ items: NotificationItem[]; unread: number }>('/me/notifications', { token }),
+  readNotifications: (token: string) =>
+    request<void>('/me/notifications/read', { method: 'POST', token }),
+
+  // Consultatii (utilizator)
+  nutritionists: (token: string) => request<NutritionistCard[]>('/nutritionists', { token }),
+  slots: (token: string, nutritionistId: string) =>
+    request<Slot[]>(`/nutritionists/${nutritionistId}/slots`, { token }),
+  consultationOffer: (token: string) =>
+    request<ConsultationOffer>('/me/consultation-offer', { token }),
+  appointments: (token: string) => request<Appointment[]>('/me/appointments', { token }),
+  book: (
+    token: string,
+    body: { nutritionistId: string; startsAt: string; note?: string; shareData?: boolean },
+  ) => request<Appointment>('/me/appointments', { method: 'POST', body, token }),
+  cancelAppointment: (token: string, id: string) =>
+    request<Appointment>(`/me/appointments/${id}/cancel`, { method: 'POST', token }),
+  nutritionistAccess: (token: string) => request<string[]>('/me/nutritionist-access', { token }),
+  setNutritionistAccess: (token: string, nutritionistId: string, granted: boolean) =>
+    request<string[]>(`/me/nutritionist-access/${nutritionistId}`, {
+      method: 'PUT',
+      body: { granted },
+      token,
+    }),
+
+  // Panoul nutritionistului
+  panel: {
+    profile: (token: string) => request<NutritionistCard>('/nutritionist/profile', { token }),
+    saveProfile: (token: string, body: Omit<NutritionistCard, 'id'>) =>
+      request<NutritionistCard>('/nutritionist/profile', { method: 'PUT', body, token }),
+    schedule: (token: string) => request<Schedule>('/nutritionist/schedule', { token }),
+    setHours: (token: string, hours: WorkHour[]) =>
+      request<Schedule>('/nutritionist/schedule/hours', { method: 'PUT', body: { hours }, token }),
+    setDayOff: (token: string, day: string, off: boolean) =>
+      request<Schedule>('/nutritionist/schedule/day-off', {
+        method: 'PUT',
+        body: { day, off },
+        token,
+      }),
+    slots: (token: string) => request<Slot[]>('/nutritionist/slots', { token }),
+    appointments: (token: string) =>
+      request<Appointment[]>('/nutritionist/appointments', { token }),
+    confirm: (token: string, id: string, note?: string) =>
+      request<Appointment>(`/nutritionist/appointments/${id}/confirm`, {
+        method: 'POST',
+        body: { note },
+        token,
+      }),
+    reject: (token: string, id: string, note?: string) =>
+      request<Appointment>(`/nutritionist/appointments/${id}/reject`, {
+        method: 'POST',
+        body: { note },
+        token,
+      }),
+    reschedule: (token: string, id: string, startsAt: string, note?: string) =>
+      request<Appointment>(`/nutritionist/appointments/${id}/reschedule`, {
+        method: 'POST',
+        body: { startsAt, note },
+        token,
+      }),
+    clients: (token: string) => request<ClientSummary[]>('/nutritionist/clients', { token }),
+    client: (token: string, id: string) =>
+      request<ClientDetail>(`/nutritionist/clients/${id}`, { token }),
+    adjustClient: (token: string, id: string, calorieTarget: number | null, note: string) =>
+      request<ClientDetail>(`/nutritionist/clients/${id}/adjustment`, {
+        method: 'PUT',
+        body: { calorieTarget, note },
+        token,
+      }),
+  },
+
+  // Panoul administratorului
+  admin: {
+    stats: (token: string) => request<AdminStats>('/admin/stats', { token }),
+    users: (token: string, q: string, role?: Role, page = 0) => {
+      const params = [`page=${page}`];
+      if (q) params.push(`q=${encodeURIComponent(q)}`);
+      if (role) params.push(`role=${role}`);
+      return request<{ total: number; page: number; pageSize: number; items: AdminUser[] }>(
+        `/admin/users?${params.join('&')}`,
+        { token },
+      );
+    },
+    setRole: (token: string, id: string, role: Role) =>
+      request<AdminUser>(`/admin/users/${id}/role`, { method: 'PUT', body: { role }, token }),
+    block: (token: string, id: string, reason: string) =>
+      request<AdminUser>(`/admin/users/${id}/block`, { method: 'POST', body: { reason }, token }),
+    unblock: (token: string, id: string) =>
+      request<AdminUser>(`/admin/users/${id}/unblock`, { method: 'POST', token }),
+    log: (token: string) => request<AdminLogEntry[]>('/admin/log', { token }),
+    settings: (token: string) => request<AdminSettings>('/admin/settings', { token }),
+    saveSettings: (token: string, body: AdminSettings) =>
+      request<AdminSettings>('/admin/settings', { method: 'PUT', body, token }),
+  },
 };
+
+export type NotificationKind =
+  | 'appointment_requested'
+  | 'appointment_confirmed'
+  | 'appointment_rejected'
+  | 'appointment_rescheduled'
+  | 'appointment_cancelled'
+  | 'plan_adjusted'
+  | 'access_granted'
+  | 'access_revoked';
+
+export interface NotificationItem {
+  id: string;
+  kind: NotificationKind;
+  payload: Record<string, string | number | null | undefined>;
+  createdAt: string;
+  read: boolean;
+}
+
+export interface NutritionistCard {
+  id: string;
+  displayName: string;
+  title: string;
+  bio: string;
+  qualifications: string;
+  experienceYears: number;
+  services: string;
+  priceMdl: number;
+  slotMinutes: number;
+}
+
+export interface Slot {
+  startsAt: string;
+  /** Ziua si ora locala (Europe/Chisinau). */
+  day: string;
+  time: string;
+}
+
+export interface ConsultationOffer {
+  days: number;
+  expiresAt: string;
+  used: boolean;
+  eligible: boolean;
+}
+
+export type AppointmentStatus = 'requested' | 'confirmed' | 'rejected' | 'cancelled';
+
+export interface Appointment {
+  id: string;
+  userId: string;
+  nutritionistId: string;
+  nutritionistName: string;
+  clientName: string;
+  startsAt: string;
+  day: string;
+  time: string;
+  durationMin: number;
+  status: AppointmentStatus;
+  free: boolean;
+  userNote: string;
+  nutritionistNote: string;
+  past: boolean;
+}
+
+export interface WorkHour {
+  weekday: number;
+  start: string;
+  end: string;
+}
+
+export interface Schedule {
+  hours: WorkHour[];
+  daysOff: string[];
+  freeSlots: number;
+}
+
+export interface ClientSummary {
+  id: string;
+  name: string;
+  goal: string | null;
+  weightKg: number | null;
+  lastWeighIn: string | null;
+  grantedAt: string;
+}
+
+export interface ClientDetail {
+  id: string;
+  profile: EnergyProfile & { name: string };
+  plan: EnergyPlan;
+  adjustedBy: 'adjustment' | 'nutritionist' | null;
+  nutritionistNote: string | null;
+  minCalories: number;
+  maxCalories: number;
+  weights: { day: string; weightKg: number }[];
+  foodLog: { day: string; kcal: number; protein: number }[];
+  mealPlan: {
+    diet: string | null;
+    allergens: string[];
+    targetKcal: number | null;
+    adjustedAt: string | null;
+  } | null;
+  appointments: Appointment[];
+}
+
+export interface AdminStats {
+  users: {
+    total: number;
+    users: number;
+    nutritionists: number;
+    admins: number;
+    blocked: number;
+    newThisWeek: number;
+    activeThisWeek: number;
+  };
+  appointments: Record<AppointmentStatus, number>;
+}
+
+export interface AdminUser {
+  id: string;
+  email: string;
+  role: Role;
+  createdAt: string;
+  blockedAt: string | null;
+  blockedReason: string | null;
+}
+
+export interface AdminLogEntry {
+  id: string;
+  action: string;
+  details: Record<string, unknown>;
+  createdAt: string;
+  adminEmail: string | null;
+  targetEmail: string | null;
+}
+
+export interface AdminSettings {
+  freeConsultationDays: number;
+}
 
 export interface WorkoutProgram {
   preferences: WorkoutPreferences;

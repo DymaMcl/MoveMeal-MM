@@ -107,7 +107,7 @@ export function Button({
       justifyContent: 'center',
       flexDirection: 'row',
       gap: th.spacing.sm,
-      paddingHorizontal: th.spacing.lg,
+      paddingHorizontal: th.spacing.md,
       overflow: 'hidden',
     },
     secondary: { backgroundColor: th.colors.primarySoft },
@@ -122,7 +122,14 @@ export function Button({
   const content = (
     <>
       {icon ? <Ionicons name={icon} size={20} color={textColor} /> : null}
-      <Text style={[s.text, { color: textColor }]}>{title}</Text>
+      <Text
+        style={[s.text, { color: textColor, flexShrink: 1 }]}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.75}
+      >
+        {title}
+      </Text>
     </>
   );
 
@@ -381,6 +388,7 @@ export function Segmented<T extends string>({
       alignItems: 'center',
       justifyContent: 'center',
       minHeight: 42,
+      paddingHorizontal: 6,
       borderRadius: th.radius.pill,
     },
     active: { backgroundColor: th.colors.surface, ...th.elevation },
@@ -400,7 +408,14 @@ export function Segmented<T extends string>({
             style={[s.item, active && s.active]}
           >
             {o.icon ? <Ionicons name={o.icon} size={16} color={color} /> : null}
-            <Text style={[s.label, { color }]}>{o.label}</Text>
+            <Text
+              style={[s.label, { color, flexShrink: 1 }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
+            >
+              {o.label}
+            </Text>
           </Pressable>
         );
       })}

@@ -25,3 +25,22 @@ export function currentWeek(today = new Date()): Date[] {
     (_, i) => new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i),
   );
 }
+
+/** „joi, 20 nov.” pentru o data AAAA-LL-ZZ, in limba data (fara deplasare de fus orar). */
+export function formatDay(day: string, locale: string, long = false): string {
+  const [y, m, d] = day.split('-').map(Number);
+  return new Date(y, m - 1, d, 12).toLocaleDateString(locale, {
+    weekday: long ? 'long' : 'short',
+    day: 'numeric',
+    month: long ? 'long' : 'short',
+  });
+}
+
+/** Data dintr-un moment ISO, de exemplu „20 nov. 2026”. */
+export function formatDate(iso: string, locale: string): string {
+  return new Date(iso).toLocaleDateString(locale, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { ApiError } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { Button, Field, Notice, Screen, Subtitle, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
@@ -28,7 +29,9 @@ export default function Login() {
       await signIn(email.trim().toLowerCase(), password);
       router.replace('/');
     } catch (error) {
-      setServerError(t(errorKey(error)));
+      const key = errorKey(error);
+      const reason = error instanceof ApiError ? String(error.data.reason ?? '') : '';
+      setServerError(key === 'errors.blocked' && reason ? `${t(key)} ${reason}` : t(key));
     } finally {
       setBusy(false);
     }

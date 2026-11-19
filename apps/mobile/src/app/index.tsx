@@ -13,6 +13,7 @@ const SPLASH_MS = 4000;
  */
 export default function Index() {
   const { ready, session, profile } = useAppState();
+  const role = session?.role;
   const [elapsed, setElapsed] = useState(false);
 
   useEffect(() => {
@@ -24,8 +25,12 @@ export default function Index() {
   if (elapsed && ready) stage = session ? 'leaving' : 'welcome';
 
   const openApp = useCallback(() => {
-    router.replace(profile ? '/home' : '/onboarding/personal');
-  }, [profile]);
+    // Nutritionistul si administratorul fara profil personal ajung direct in panoul lor.
+    if (profile) router.replace('/home');
+    else if (role === 'nutritionist') router.replace('/panel');
+    else if (role === 'admin') router.replace('/admin');
+    else router.replace('/onboarding/personal');
+  }, [profile, role]);
 
   return <WelcomeView stage={stage} animated onLeft={openApp} />;
 }

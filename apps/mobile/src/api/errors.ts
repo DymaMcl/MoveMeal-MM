@@ -8,6 +8,8 @@ export function errorKey(error: unknown): string {
       return 'errors.network';
     case 401:
       return 'errors.invalidCredentials';
+    case 403:
+      return error.data.code === 'account_blocked' ? 'errors.blocked' : 'errors.forbidden';
     case 409:
       return 'errors.emailTaken';
     case 423:

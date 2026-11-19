@@ -10,7 +10,7 @@ import {
   type ReactNode,
 } from 'react';
 import { calculateEnergyPlan, type EnergyPlan, type EnergyProfile } from '@movemeal/shared';
-import { api, ApiError } from '@/api/client';
+import { api, ApiError, type ProfileResponse, type Role } from '@/api/client';
 
 /**
  * Starea aplicatiei. Contul si profilul sunt pastrate pe server; pe telefon raman
@@ -20,6 +20,14 @@ import { api, ApiError } from '@/api/client';
 export interface Session {
   email: string;
   token: string;
+  /** Rolul contului: utilizator, nutritionist sau administrator. */
+  role: Role;
+}
+
+/** Cine a stabilit tinta calorica (null = calculul automat din profil). */
+export interface TargetSource {
+  adjustedBy: 'adjustment' | 'nutritionist' | null;
+  nutritionistNote: string | null;
 }
 
 export interface UserProfile extends EnergyProfile {
@@ -32,13 +40,18 @@ const KEYS = {
   token: 'movemeal.token',
   email: 'movemeal.email',
   profile: 'movemeal.profile',
+  role: 'movemeal.role',
 } as const;
+
+const isRole = (value: unknown): value is Role =>
+  value === 'user' || value === 'nutritionist' || value === 'admin';
 
 interface AppStateValue {
   ready: boolean;
   session: Session | null;
   profile: UserProfile | null;
   plan: EnergyPlan | null;
+  targetSource: TargetSource;
   draft: ProfileDraft;
   register: (email: string, password: string, healthDataConsent: boolean) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
@@ -88,11 +101,26 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState<ProfileDraft>({});
   /** Planul caloric primit de la server (include o eventuala ajustare acceptata). */
   const [serverPlan, setServerPlan] = useState<EnergyPlan | null>(null);
+  const [targetSource, setTargetSource] = useState<TargetSource>({
+    adjustedBy: null,
+    nutritionistNote: null,
+  });
+
+  const applyRemote = useCallback(async (remote: ProfileResponse) => {
+    setProfile(remote.profile);
+    setServerPlan(remote.plan);
+    setTargetSource({
+      adjustedBy: remote.adjustedBy ?? (remote.adjusted ? 'adjustment' : null),
+      nutritionistNote: remote.nutritionistNote ?? null,
+    });
+    await writeProfileCache(remote.profile);
+  }, []);
 
   const clearLocal = useCallback(async () => {
     await Promise.all([
       SecureStore.deleteItemAsync(KEYS.token),
       AsyncStorage.removeItem(KEYS.email),
+      AsyncStorage.removeItem(KEYS.role),
       writeProfileCache(null),
     ]);
     setSession(null);
@@ -104,23 +132,25 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // La pornire: sesiunea salvata + copia profilului, apoi sincronizare cu serverul.
   useEffect(() => {
     (async () => {
-      const [token, email, cached] = await Promise.all([
+      const [token, email, cached, storedRole] = await Promise.all([
         SecureStore.getItemAsync(KEYS.token),
         AsyncStorage.getItem(KEYS.email),
         readProfileCache(),
+        AsyncStorage.getItem(KEYS.role),
       ]);
       if (token && email) {
-        setSession({ token, email });
+        setSession({ token, email, role: isRole(storedRole) ? storedRole : 'user' });
         setProfile(cached);
       }
       setReady(true);
 
       if (!token) return;
       try {
-        const remote = await api.getProfile(token);
-        setProfile(remote.profile);
-        setServerPlan(remote.plan);
-        await writeProfileCache(remote.profile);
+        // Rolul poate fi schimbat intre timp de administrator.
+        const me = await api.me(token);
+        setSession((prev) => (prev ? { ...prev, role: me.role } : prev));
+        await AsyncStorage.setItem(KEYS.role, me.role);
+        await applyRemote(await api.getProfile(token));
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) await clearLocal();
         else if (error instanceof ApiError && error.status === 404) {
@@ -130,28 +160,29 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         // Fara conexiune: se foloseste copia locala.
       }
     })();
-  }, [clearLocal]);
+  }, [clearLocal, applyRemote]);
 
-  const startSession = useCallback(async (token: string, email: string) => {
-    await Promise.all([
-      SecureStore.setItemAsync(KEYS.token, token),
-      AsyncStorage.setItem(KEYS.email, email),
-    ]);
-    setSession({ token, email });
-    try {
-      const remote = await api.getProfile(token);
-      setProfile(remote.profile);
-      setServerPlan(remote.plan);
-      await writeProfileCache(remote.profile);
-    } catch {
-      setProfile(null);
-    }
-  }, []);
+  const startSession = useCallback(
+    async (token: string, email: string, role: Role) => {
+      await Promise.all([
+        SecureStore.setItemAsync(KEYS.token, token),
+        AsyncStorage.setItem(KEYS.email, email),
+        AsyncStorage.setItem(KEYS.role, role),
+      ]);
+      setSession({ token, email, role });
+      try {
+        await applyRemote(await api.getProfile(token));
+      } catch {
+        setProfile(null);
+      }
+    },
+    [applyRemote],
+  );
 
   const register = useCallback(
     async (email: string, password: string, healthDataConsent: boolean) => {
       const res = await api.register(email, password, healthDataConsent);
-      await startSession(res.token, res.user.email);
+      await startSession(res.token, res.user.email, res.user.role ?? 'user');
     },
     [startSession],
   );
@@ -159,7 +190,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const signIn = useCallback(
     async (email: string, password: string) => {
       const res = await api.login(email, password);
-      await startSession(res.token, res.user.email);
+      await startSession(res.token, res.user.email, res.user.role ?? 'user');
     },
     [startSession],
   );
@@ -181,11 +212,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       delete payload.targetWeightKg;
       delete payload.weeks;
     }
-    const saved = await api.saveProfile(session.token, payload);
-    await writeProfileCache(saved.profile);
-    setProfile(saved.profile);
-    setServerPlan(saved.plan);
-  }, [draft, session]);
+    await applyRemote(await api.saveProfile(session.token, payload));
+  }, [draft, session, applyRemote]);
 
   /** Porneste din nou chestionarul, cu valorile actuale precompletate. */
   const resetProfile = useCallback(() => {
@@ -197,11 +225,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   /** Reincarca profilul si tinta de pe server (de exemplu dupa acceptarea unei ajustari). */
   const refreshProfile = useCallback(async () => {
     if (!session) return;
-    const remote = await api.getProfile(session.token);
-    setProfile(remote.profile);
-    setServerPlan(remote.plan);
-    await writeProfileCache(remote.profile);
-  }, [session]);
+    await applyRemote(await api.getProfile(session.token));
+  }, [session, applyRemote]);
 
   // Fara conexiune se foloseste calculul local, cu aceleasi formule ca serverul.
   const plan = useMemo(
@@ -215,6 +240,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       plan,
+      targetSource,
       draft,
       register,
       signIn,
@@ -229,6 +255,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       session,
       profile,
       plan,
+      targetSource,
       draft,
       register,
       signIn,
