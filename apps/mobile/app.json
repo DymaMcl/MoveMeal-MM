@@ -23,7 +23,15 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "MoveMeal folosește camera pentru a fotografia masa și a estima caloriile.",
+          "photosPermission": "MoveMeal accesează fotografiile pe care le alegi pentru a estima caloriile mesei.",
+          "microphonePermission": false
+        }
+      ]
     ]
   }
 }

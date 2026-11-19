@@ -30,6 +30,11 @@ export const ro = {
     },
   },
   errors: {
+    aiUnavailable: 'Asistentul AI nu este disponibil acum.',
+    aiFailed: 'Serviciul AI nu a răspuns. Încearcă din nou peste puțin timp.',
+    aiBlocked: 'Cererea nu poate fi procesată. Încearcă altă formulare sau altă fotografie.',
+    aiLimit: 'Ai atins limita zilnică pentru funcțiile AI. Încearcă din nou mâine.',
+    imageTooLarge: 'Fotografia este prea mare.',
     network: 'Nu ne putem conecta la server. Verifică conexiunea la internet și încearcă din nou.',
     invalidCredentials: 'E-mail sau parolă greșită.',
     emailTaken: 'Există deja un cont cu acest e-mail.',
@@ -436,7 +441,7 @@ export const ro = {
     empty: 'Nimic înregistrat.',
     meals: { breakfast: 'Mic dejun', lunch: 'Prânz', dinner: 'Cină', snack: 'Gustări' },
     photo: 'Fotografiază mâncarea',
-    photoSoon: 'Recunoașterea alimentelor din fotografie va fi disponibilă în curând.',
+    photoHint: 'AI-ul recunoaște alimentele și estimează caloriile.',
     searchTitle: 'Adaugă la: {meal}',
     searchPlaceholder: 'Caută (ex. banană, chicken)',
     recent: 'Folosite recent',
@@ -483,6 +488,7 @@ export const ro = {
     remove: '−250 ml',
   },
   menu: {
+    foodPhoto: 'Fotografiază masa',
     title: 'Meniu',
     open: 'Deschide meniul',
     close: 'Închide meniul',
@@ -568,6 +574,12 @@ export const ro = {
     consult: 'Discută cu nutriționistul',
   },
   assistant: {
+    aiBadge: 'Gemini AI',
+    offlineBadge: 'Mod offline',
+    noteAi:
+      'Răspunsurile sunt generate de AI (Google Gemini) din profilul și jurnalul tău, fără e-mail. Pot conține erori și nu înlocuiesc sfatul unui medic.',
+    thinking: 'Asistentul scrie…',
+    offlineReply: 'Răspuns automat (asistentul AI nu este disponibil acum).',
     title: 'Asistent MoveMeal',
     subtitle: 'Răspunsuri rapide despre aplicație, alimentație și antrenamente',
     placeholder: 'Scrie o întrebare…',
@@ -576,6 +588,7 @@ export const ro = {
       'Salut, {name}! Sunt asistentul MoveMeal. Întreabă-mă despre calorii, mese, antrenamente, greutate sau consultații.',
     note: 'Răspunsurile sunt automate, pe baza regulilor aplicației. Pentru sfaturi personalizate, programează o consultație cu nutriționistul.',
     suggestions: {
+      photo: 'Cum fotografiez o masă?',
       calories: 'Câte calorii am nevoie?',
       protein: 'Câte proteine trebuie să mănânc?',
       swap: 'Cum schimb o masă din plan?',
@@ -584,6 +597,8 @@ export const ro = {
       bmi: 'Am o greutate normală?',
     },
     answers: {
+      photo:
+        'Deschide „Fotografiază masa” din meniu sau din Calculator calorii. AI-ul recunoaște alimentele din poză și estimează gramajul și caloriile, iar tu le verifici și le corectezi înainte să le adaugi în jurnal.',
       hello: 'Salut! Cu ce te pot ajuta?',
       thanks: 'Cu plăcere! Dacă mai ai întrebări, sunt aici.',
       calories:
@@ -619,6 +634,43 @@ export const ro = {
     actions: {
       open: 'Deschide',
     },
+  },
+  photo: {
+    title: 'Fotografiază masa',
+    subtitle: 'AI-ul recunoaște alimentele și estimează caloriile',
+    intro:
+      'Fă o fotografie farfuriei sau alege una din galerie. Înainte de a salva, poți corecta gramajul și poți scoate alimentele greșite.',
+    camera: 'Fă o fotografie',
+    gallery: 'Alege din galerie',
+    tipsTitle: 'Pentru un rezultat bun',
+    tip1: 'Fotografiază de sus, cu toată farfuria în cadru.',
+    tip2: 'Folosește lumină bună, fără umbre puternice.',
+    tip3: 'La produsele ambalate, fotografiază eticheta nutrițională.',
+    remaining: 'Analize rămase azi: {n}',
+    analyzing: 'Analizăm fotografia…',
+    analyzingHint: 'Durează câteva secunde.',
+    notFood:
+      'Nu am recunoscut mâncare în această fotografie. Încearcă din nou, cu farfuria în centrul imaginii.',
+    found: 'Alimente recunoscute',
+    total: 'Total selectat',
+    meal: 'Adaugă la',
+    catalog: 'Din catalog',
+    uncertain: 'Estimare incertă',
+    decrease: 'Scade 10 g',
+    increase: 'Crește 10 g',
+    include: 'Include în jurnal',
+    disclaimer:
+      'Valorile sunt estimate de AI (Google Gemini) și pot diferi de realitate. Verifică gramajul înainte de a salva. Fotografia nu se păstrează pe server.',
+    save: 'Adaugă în jurnal · {kcal} kcal',
+    saved: 'Masa a fost adăugată în jurnal.',
+    retake: 'Altă fotografie',
+    selectOne: 'Alege cel puțin un aliment.',
+    permissionCamera:
+      'Permite accesul la cameră din setările telefonului pentru a fotografia masa.',
+    permissionGallery: 'Permite accesul la fotografii din setările telefonului.',
+    unavailable:
+      'Recunoașterea din fotografie nu este disponibilă acum. Poți adăuga alimentele manual.',
+    manual: 'Adaugă manual',
   },
   consult: {
     title: 'Nutriționist',

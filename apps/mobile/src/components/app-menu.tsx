@@ -133,6 +133,13 @@ export function AppMenuProvider({ children }: { children: ReactNode }) {
         path: '/calories',
       },
       {
+        key: 'foodPhoto',
+        label: t('menu.foodPhoto'),
+        icon: 'camera-outline',
+        href: '/food-photo',
+        path: '/food-photo',
+      },
+      {
         key: 'progress',
         label: t('menu.progress'),
         icon: 'stats-chart-outline',

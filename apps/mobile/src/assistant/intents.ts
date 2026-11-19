@@ -20,6 +20,7 @@ export type Intent =
   | 'nutritionist'
   | 'freeConsult'
   | 'bmi'
+  | 'photo'
   | 'settings'
   | 'privacy';
 
@@ -90,6 +91,22 @@ const RULES: IntentRule[] = [
     ],
     action: '/body-check',
     actionLabel: 'menu.bodyCheck',
+  },
+  {
+    intent: 'photo',
+    keywords: [
+      'fotograf',
+      'poza',
+      'camera',
+      'photo',
+      'picture',
+      'snap',
+      'фото',
+      'сфотограф',
+      'снимок',
+    ],
+    action: '/food-photo',
+    actionLabel: 'menu.foodPhoto',
   },
   {
     intent: 'protein',

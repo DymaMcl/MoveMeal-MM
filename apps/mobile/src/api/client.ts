@@ -103,11 +103,59 @@ export interface FoodLogEntry extends Nutrients {
   id: string;
   day: string;
   meal: LogMeal;
-  source: 'food' | 'recipe';
+  /** photo = aliment recunoscut din fotografie, care nu exista in catalog. */
+  source: 'food' | 'recipe' | 'photo';
   refId: string;
   name: string;
   amount: number;
   unit: 'g' | 'portion';
+}
+
+/** Paginile pe care asistentul AI le poate recomanda. */
+export type AssistantAction =
+  | 'home'
+  | 'workout'
+  | 'meals'
+  | 'calories'
+  | 'foodPhoto'
+  | 'progress'
+  | 'nutritionist'
+  | 'bodyCheck'
+  | 'settings';
+
+export interface AiStatus {
+  available: boolean;
+  /** Cererile ramase in ultimele 24 de ore. */
+  remaining: { chat: number; photo: number };
+}
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
+export interface AssistantReply {
+  reply: string;
+  action: AssistantAction | null;
+}
+
+export interface PhotoItem {
+  index: number;
+  name: string;
+  grams: number;
+  /** Valorile la 100 g (pentru recalcularea dupa corectarea gramajului). */
+  per100: Nutrients;
+  foodId: string | null;
+  confidence: number;
+  nutrients: Nutrients;
+}
+
+export interface PhotoAnalysis {
+  id: string;
+  dish: string;
+  isFood: boolean;
+  items: PhotoItem[];
+  total: Nutrients;
 }
 
 export interface Measurement {
@@ -228,6 +276,33 @@ export const api = {
       body: { granted },
       token,
     }),
+
+  // Asistentul AI (Gemini) si fotografierea mesei
+  ai: {
+    status: (token: string) => request<AiStatus>('/me/ai', { token }),
+    chat: (token: string, messages: ChatMessage[], language: 'ro' | 'en' | 'ru') =>
+      request<AssistantReply>('/me/assistant/chat', {
+        method: 'POST',
+        body: { messages, language },
+        token,
+      }),
+    analyzePhoto: (
+      token: string,
+      image: string,
+      mimeType: 'image/jpeg',
+      language: 'ro' | 'en' | 'ru',
+    ) =>
+      request<PhotoAnalysis>('/me/food-photo', {
+        method: 'POST',
+        body: { image, mimeType, language },
+        token,
+      }),
+    logPhoto: (
+      token: string,
+      id: string,
+      body: { day: string; meal: LogMeal; items: { index: number; grams: number }[] },
+    ) => request<FoodLogEntry[]>(`/me/food-photo/${id}/log`, { method: 'POST', body, token }),
+  },
 
   // Panoul nutritionistului
   panel: {

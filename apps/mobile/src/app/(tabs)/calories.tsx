@@ -19,6 +19,7 @@ import { MenuButton } from '@/components/app-menu';
 
 /** Denumirea din catalog in limba aleasa; textul salvat pe server ramane rezerva. */
 function entryName(e: FoodLogEntry, language: 'ro' | 'en' | 'ru'): string {
+  if (e.source === 'photo') return e.name;
   if (e.source === 'food') {
     const food = getFood(e.refId);
     return food ? foodName(food, language) : e.name;
@@ -228,15 +229,16 @@ export default function Calories() {
         <Pressable
           accessibilityRole="button"
           style={s.photo}
-          onPress={() => Alert.alert(t('journal.photo'), t('journal.photoSoon'))}
+          onPress={() => router.push({ pathname: '/food-photo', params: { day } })}
         >
           <Ionicons name="camera" size={28} color={theme.colors.primary} />
           <View style={{ flex: 1 }}>
             <Text style={[theme.font.heading, { color: theme.colors.primaryStrong }]}>
               {t('journal.photo')}
             </Text>
-            <Text style={theme.font.caption}>{t('journal.photoSoon')}</Text>
+            <Text style={theme.font.caption}>{t('journal.photoHint')}</Text>
           </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.colors.textMuted} />
         </Pressable>
 
         {MEALS.map((meal) => {
