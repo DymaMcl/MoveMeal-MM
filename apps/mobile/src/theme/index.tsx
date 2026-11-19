@@ -21,68 +21,74 @@ import {
 export type ThemeMode = 'system' | 'light' | 'dark';
 export type Scheme = 'light' | 'dark';
 
+/**
+ * Stilul aplicatiei: fundal alb (zi) sau negru (noapte), iar liniile, contururile si accentele
+ * in albastru inchis. Macronutrientii folosesc trei nuante echilibrate de albastru.
+ * Rosul ramane doar pentru erori.
+ */
 const light = {
-  background: '#F3F5FA',
+  background: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceAlt: '#EDF0F6',
-  text: '#0E1525',
-  textMuted: '#667089',
-  border: '#E3E7EF',
-  primary: '#12B76A',
-  primaryStrong: '#039855',
-  primarySoft: '#DDF7EA',
+  surfaceAlt: '#F1F4FA',
+  text: '#0B1220',
+  textMuted: '#5B6478',
+  border: 'rgba(30, 58, 138, 0.28)',
+  primary: '#1E3A8A',
+  primaryStrong: '#172E6E',
+  primarySoft: '#E6ECF8',
   onPrimary: '#FFFFFF',
-  accent: '#FF7A45',
-  accentSoft: '#FFE9DF',
-  info: '#3E7BFA',
-  infoSoft: '#E3ECFF',
-  danger: '#E5484D',
-  warning: '#B54708',
-  warningSoft: '#FFF4DE',
-  protein: '#5B7CFF',
-  carbs: '#F5B400',
-  fat: '#FF5C7A',
+  accent: '#2F5BC4',
+  accentSoft: '#E3EAFA',
+  info: '#3B6FD8',
+  infoSoft: '#E6EEFC',
+  danger: '#D92D20',
+  warning: '#8A5300',
+  warningSoft: '#FFF6E5',
+  protein: '#1E3A8A',
+  carbs: '#3B6FD8',
+  fat: '#8FB3EE',
   tabBar: '#FFFFFF',
-  shadow: '#0E1525',
+  shadow: '#000000',
 };
 
 export type Palette = typeof light;
 
 const dark: Palette = {
-  background: '#0A0E16',
-  surface: '#141A25',
-  surfaceAlt: '#1C2432',
-  text: '#F2F5FA',
-  textMuted: '#93A0B8',
-  border: '#252F40',
-  primary: '#2BD48A',
-  primaryStrong: '#1FB574',
-  primarySoft: '#123526',
-  onPrimary: '#05130C',
-  accent: '#FF8A5C',
-  accentSoft: '#3A2219',
-  info: '#6E9BFF',
-  infoSoft: '#18244A',
+  background: '#000000',
+  surface: '#0B0F17',
+  surfaceAlt: '#141B28',
+  text: '#F5F7FB',
+  textMuted: '#9AA4B8',
+  border: 'rgba(96, 140, 230, 0.35)',
+  // Pe negru, albastrul foarte inchis nu s-ar vedea; se foloseste o nuanta putin mai deschisa.
+  primary: '#4A78E0',
+  primaryStrong: '#8AACF2',
+  primarySoft: '#0F1B36',
+  onPrimary: '#FFFFFF',
+  accent: '#6E93E8',
+  accentSoft: '#111D38',
+  info: '#7FA3F0',
+  infoSoft: '#111D38',
   danger: '#FF6369',
-  warning: '#F7B955',
-  warningSoft: '#3A2D14',
-  protein: '#7D96FF',
-  carbs: '#FFCB3D',
-  fat: '#FF7A93',
-  tabBar: '#10151F',
+  warning: '#F2B95A',
+  warningSoft: '#2E2410',
+  protein: '#BBD0FA',
+  carbs: '#6E93E8',
+  fat: '#2F5BC4',
+  tabBar: '#000000',
   shadow: '#000000',
 };
 
 const gradients = {
   light: {
-    hero: ['#12B76A', '#0BA5EC'] as const,
-    warm: ['#FF7A45', '#FF4D8D'] as const,
-    primary: ['#16C47F', '#039855'] as const,
+    hero: ['#0F2557', '#1E3A8A'] as const,
+    warm: ['#1E3A8A', '#2F5BC4'] as const,
+    primary: ['#1E3A8A', '#172E6E'] as const,
   },
   dark: {
-    hero: ['#0F7A4C', '#0B5E8A'] as const,
-    warm: ['#C2502A', '#B3265F'] as const,
-    primary: ['#2BD48A', '#16A86A'] as const,
+    hero: ['#0E1E47', '#1C3474'] as const,
+    warm: ['#173068', '#2A4F9E'] as const,
+    primary: ['#3A66CF', '#1E3A8A'] as const,
   },
 };
 
@@ -104,16 +110,8 @@ function buildTheme(scheme: Scheme) {
       body: { fontSize: 15, color: colors.text, lineHeight: 21 },
       caption: { fontSize: 13, color: colors.textMuted, lineHeight: 18 },
     } satisfies Record<string, TextStyle>,
-    /** Umbra discreta pentru carduri (in tema intunecata se foloseste doar conturul). */
-    elevation: (scheme === 'dark'
-      ? {}
-      : {
-          shadowColor: colors.shadow,
-          shadowOpacity: 0.06,
-          shadowRadius: 16,
-          shadowOffset: { width: 0, height: 6 },
-          elevation: 2,
-        }) as ViewStyle,
+    /** Cardurile au un contur subtire albastru in loc de umbra (stil plat, alb/negru). */
+    elevation: { borderWidth: 1, borderColor: colors.border } as ViewStyle,
   };
 }
 

@@ -10,6 +10,7 @@ export const ro = {
     years: 'ani',
     weeks: 'săptămâni',
     g: 'g',
+    ml: 'ml',
     /** Abrevieri: proteine, carbohidrati, grasimi. */
     proteinShort: 'P',
     carbsShort: 'C',

@@ -12,6 +12,7 @@ export const en: Dictionary = {
     years: 'years',
     weeks: 'weeks',
     g: 'g',
+    ml: 'ml',
     /** Abrevieri: proteine, carbohidrati, grasimi. */
     proteinShort: 'P',
     carbsShort: 'C',

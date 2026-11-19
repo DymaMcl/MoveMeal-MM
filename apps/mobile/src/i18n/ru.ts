@@ -12,6 +12,7 @@ export const ru: Dictionary = {
     years: 'лет',
     weeks: 'недель',
     g: 'г',
+    ml: 'мл',
     /** Abrevieri: proteine, carbohidrati, grasimi. */
     proteinShort: 'Б',
     carbsShort: 'У',

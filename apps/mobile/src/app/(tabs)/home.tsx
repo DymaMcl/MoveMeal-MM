@@ -343,7 +343,7 @@ export default function Home() {
           <View style={s.waterRow}>
             <View style={{ flex: 1, gap: 6 }}>
               <Text style={theme.font.heading}>
-                {waterToday} ml{' '}
+                {waterToday} {t('common.ml')}{' '}
                 <Text style={theme.font.caption}>{t('water.goal', { goal: waterGoal })}</Text>
               </Text>
               <View style={s.waterTrack}>

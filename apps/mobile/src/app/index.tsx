@@ -1,28 +1,31 @@
-import { Redirect } from 'expo-router';
-import { ActivityIndicator, View } from 'react-native';
+import { router } from 'expo-router';
+import { useCallback, useEffect, useState } from 'react';
+import { WelcomeView, type WelcomeStage } from '@/components/welcome-view';
 import { useAppState } from '@/state/app-state';
-import { useTheme } from '@/theme';
 
-/** Punctul de intrare: trimite utilizatorul spre ecranul potrivit starii lui. */
+/** Cat timp ramane titlul „MoveMeal” in mijlocul ecranului la deschiderea aplicatiei. */
+const SPLASH_MS = 4000;
+
+/**
+ * Punctul de intrare. La deschidere apare doar titlul, cateva secunde; apoi:
+ * - fara cont conectat: titlul urca si apare panoul de bun venit;
+ * - cu cont conectat: titlul dispare lin si se deschide pagina principala (sau chestionarul).
+ */
 export default function Index() {
   const { ready, session, profile } = useAppState();
-  const theme = useTheme();
+  const [elapsed, setElapsed] = useState(false);
 
-  if (!ready) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          alignItems: 'center',
-          justifyContent: 'center',
-          backgroundColor: theme.colors.background,
-        }}
-      >
-        <ActivityIndicator color={theme.colors.primary} />
-      </View>
-    );
-  }
-  if (!session) return <Redirect href="/welcome" />;
-  if (!profile) return <Redirect href="/onboarding/personal" />;
-  return <Redirect href="/home" />;
+  useEffect(() => {
+    const timer = setTimeout(() => setElapsed(true), SPLASH_MS);
+    return () => clearTimeout(timer);
+  }, []);
+
+  let stage: WelcomeStage = 'splash';
+  if (elapsed && ready) stage = session ? 'leaving' : 'welcome';
+
+  const openApp = useCallback(() => {
+    router.replace(profile ? '/home' : '/onboarding/personal');
+  }, [profile]);
+
+  return <WelcomeView stage={stage} animated onLeft={openApp} />;
 }

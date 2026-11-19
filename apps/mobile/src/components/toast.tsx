@@ -64,7 +64,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             paddingVertical: 14,
             paddingHorizontal: 16,
             borderRadius: theme.radius.md,
-            backgroundColor: theme.scheme === 'dark' ? '#1E2A3B' : '#0E1525',
+            backgroundColor: theme.scheme === 'dark' ? '#141B28' : '#0F2557',
             ...theme.elevation,
           }}
         >
