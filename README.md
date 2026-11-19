@@ -49,6 +49,18 @@ Adresa poate fi schimbată cu variabila `EXPO_PUBLIC_API_URL`.
 Părțile pot fi pornite și separat: `npm run api`, `npm run mobile`,
 `npm run db:migrate --workspace=@movemeal/api`.
 
+## Roluri
+
+Orice cont nou are rolul „utilizator”. Primul administrator se stabilește din linia de comandă
+(contul trebuie să existe deja):
+
+```bash
+npm run user:role --workspace=apps/api -- email@exemplu.md admin
+```
+
+Apoi administratorul poate face alte conturi nutriționist sau administrator din panoul său
+(meniul cu 3 linii → „Panoul administratorului” → „Conturi”).
+
 ## Teste
 
 ```bash
@@ -84,8 +96,18 @@ npm run typecheck                                            # verificarea tipur
 - [x] Ajustarea automată a țintei calorice (minimum 6 cântăriri, jurnal în 10 din 14 zile, ±5%)
 - [ ] Recunoașterea alimentelor din fotografie (AI)
 - [ ] Înregistrarea seriilor (greutate, repetări), cronometrul de pauză și recordurile personale
-- [ ] Nutriționist și programări
-- [ ] Blog și asistentul virtual
-- [ ] Notificări și raportul săptămânal
-- [ ] Panourile de administrare și al nutriționistului (site web separat)
+- [x] Roluri: utilizator, nutriționist, administrator (verificate pe server la fiecare cerere)
+- [x] Meniul cu 3 linii (dreapta sus) cu toate paginile, în funcție de rol
+- [x] Nutriționist și programări: profil, calendar liber, solicitare, anulare, prima consultație gratuită
+- [x] Acordul de acces: nutriționistul vede planul și progresul doar cu acordul utilizatorului (RLS)
+- [x] Panoul nutriționistului în aplicație: solicitări (confirmare, respingere, reprogramare), program
+      săptămânal și zile libere, clienți, ajustarea țintei și a planului („ajustat de nutriționist”), profil
+- [x] Panoul administratorului în aplicație: statistici, conturi, roluri, blocare cu motiv, jurnal, parametri
+- [x] Notificări în aplicație (programări, ajustări)
+- [x] Cântar ponderal: IMC (clasificarea OMS), greutate sănătoasă, grăsime estimată, metabolism bazal, talie
+- [x] Asistent (chat) cu răspunsuri automate din regulile aplicației și datele utilizatorului
+- [ ] Asistent AI și recunoașterea alimentelor din fotografie (necesită un serviciu AI)
+- [ ] Blog
+- [ ] Notificări push și raportul săptămânal
+- [ ] Site web separat pentru panourile de administrare și al nutriționistului
 - [ ] Catalogul complet: 150 de exerciții, 200 de rețete, import din Open Food Facts
