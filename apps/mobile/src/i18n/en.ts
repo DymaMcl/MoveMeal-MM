@@ -19,6 +19,20 @@ export const en: Dictionary = {
     subtitle: 'Workouts and nutrition tailored to you, supported by a licensed nutritionist.',
     register: 'Create account',
     login: 'I already have an account',
+    features: {
+      workouts: 'Workouts',
+      nutrition: 'Nutrition',
+      nutritionist: 'Nutritionist',
+    },
+  },
+  settings: {
+    title: 'Settings',
+    theme: 'Appearance',
+    themeSystem: 'System',
+    themeLight: 'Light',
+    themeDark: 'Dark',
+    language: 'Language',
+    account: 'Account',
   },
   auth: {
     loginTitle: 'Sign in',

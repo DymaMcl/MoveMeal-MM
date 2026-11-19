@@ -1,40 +1,52 @@
-import type { ReactNode } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import type { ComponentProps, ReactNode } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
   type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors, font, radius, spacing } from '@/theme';
+import { useStyles, useTheme } from '@/theme';
+
+export type IconName = ComponentProps<typeof Ionicons>['name'];
 
 export function Screen({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
+  const s = useStyles((t) => ({
+    safe: { flex: 1, backgroundColor: t.colors.background },
+    flex: { flex: 1 },
+    content: { padding: t.spacing.lg, gap: t.spacing.md, flexGrow: 1 },
+    footer: { padding: t.spacing.lg, paddingTop: t.spacing.sm, gap: t.spacing.sm },
+  }));
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
+        {footer ? <View style={s.footer}>{footer}</View> : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 export function Title({ children }: { children: ReactNode }) {
-  return <Text style={font.title}>{children}</Text>;
+  const t = useTheme();
+  return <Text style={t.font.title}>{children}</Text>;
 }
 
 export function Subtitle({ children }: { children: ReactNode }) {
-  return <Text style={[font.body, styles.subtitle]}>{children}</Text>;
+  const t = useTheme();
+  return (
+    <Text style={[t.font.body, { color: t.colors.textMuted, marginBottom: t.spacing.sm }]}>
+      {children}
+    </Text>
+  );
 }
 
 export function StepIndicator({
@@ -46,11 +58,26 @@ export function StepIndicator({
   current: number;
   total: number;
 }) {
+  const t = useTheme();
+  const s = useStyles((th) => ({
+    wrap: { gap: th.spacing.sm, marginBottom: th.spacing.sm },
+    track: {
+      height: 8,
+      borderRadius: th.radius.pill,
+      backgroundColor: th.colors.surfaceAlt,
+      overflow: 'hidden',
+    },
+  }));
   return (
-    <View style={styles.step}>
-      <Text style={font.caption}>{label}</Text>
-      <View style={styles.stepTrack}>
-        <View style={[styles.stepFill, { width: `${(current / total) * 100}%` }]} />
+    <View style={s.wrap}>
+      <Text style={[t.font.caption, { fontWeight: '600' }]}>{label}</Text>
+      <View style={s.track}>
+        <LinearGradient
+          colors={t.gradients.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={{ height: 8, width: `${(current / total) * 100}%`, borderRadius: 999 }}
+        />
       </View>
     </View>
   );
@@ -62,26 +89,65 @@ export function Button({
   title,
   onPress,
   disabled,
+  icon,
   variant = 'primary',
 }: {
   title: string;
   onPress: () => void;
   disabled?: boolean;
+  icon?: IconName;
   variant?: ButtonVariant;
 }) {
+  const t = useTheme();
+  const s = useStyles((th) => ({
+    base: {
+      minHeight: 54,
+      borderRadius: th.radius.pill,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexDirection: 'row',
+      gap: th.spacing.sm,
+      paddingHorizontal: th.spacing.lg,
+      overflow: 'hidden',
+    },
+    secondary: { backgroundColor: th.colors.primarySoft },
+    text: { fontSize: 16, fontWeight: '700' },
+  }));
+  const textColor =
+    variant === 'primary'
+      ? t.colors.onPrimary
+      : variant === 'secondary'
+        ? t.colors.primaryStrong
+        : t.colors.primary;
+  const content = (
+    <>
+      {icon ? <Ionicons name={icon} size={20} color={textColor} /> : null}
+      <Text style={[s.text, { color: textColor }]}>{title}</Text>
+    </>
+  );
+
   return (
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
       disabled={disabled}
-      style={({ pressed }) => [
-        styles.button,
-        styles[`button_${variant}`],
-        disabled && styles.buttonDisabled,
-        pressed && !disabled && styles.buttonPressed,
-      ]}
+      style={({ pressed }) => ({
+        opacity: disabled ? 0.45 : pressed ? 0.85 : 1,
+        transform: [{ scale: pressed && !disabled ? 0.98 : 1 }],
+      })}
     >
-      <Text style={[styles.buttonText, styles[`buttonText_${variant}`]]}>{title}</Text>
+      {variant === 'primary' ? (
+        <LinearGradient
+          colors={t.gradients.primary}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={s.base}
+        >
+          {content}
+        </LinearGradient>
+      ) : (
+        <View style={[s.base, variant === 'secondary' && s.secondary]}>{content}</View>
+      )}
     </Pressable>
   );
 }
@@ -91,17 +157,76 @@ export function Field({
   error,
   hint,
   suffix,
+  icon,
   ...input
-}: TextInputProps & { label: string; error?: string | null; hint?: ReactNode; suffix?: string }) {
+}: TextInputProps & {
+  label: string;
+  error?: string | null;
+  hint?: ReactNode;
+  suffix?: string;
+  icon?: IconName;
+}) {
+  const t = useTheme();
+  const s = useStyles((th) => ({
+    field: { gap: th.spacing.xs + 2 },
+    label: { fontSize: 14, fontWeight: '600', color: th.colors.text },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: th.spacing.sm,
+      backgroundColor: th.colors.surface,
+      borderWidth: 1.5,
+      borderColor: th.colors.border,
+      borderRadius: th.radius.md,
+      paddingHorizontal: th.spacing.md,
+    },
+    rowError: { borderColor: th.colors.danger },
+    input: { flex: 1, minHeight: 54, fontSize: 16, color: th.colors.text },
+    suffix: { ...th.font.caption, fontWeight: '600' },
+    error: { fontSize: 13, color: th.colors.danger },
+  }));
   return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={[styles.inputRow, !!error && styles.inputError]}>
-        <TextInput placeholderTextColor={colors.textMuted} style={styles.input} {...input} />
-        {suffix ? <Text style={styles.suffix}>{suffix}</Text> : null}
+    <View style={s.field}>
+      <Text style={s.label}>{label}</Text>
+      <View style={[s.row, !!error && s.rowError]}>
+        {icon ? <Ionicons name={icon} size={20} color={t.colors.textMuted} /> : null}
+        <TextInput
+          placeholderTextColor={t.colors.textMuted}
+          selectionColor={t.colors.primary}
+          style={s.input}
+          {...input}
+        />
+        {suffix ? <Text style={s.suffix}>{suffix}</Text> : null}
       </View>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={s.error}>{error}</Text> : null}
       {hint}
+    </View>
+  );
+}
+
+export function IconCircle({
+  icon,
+  color,
+  background,
+  size = 44,
+}: {
+  icon: IconName;
+  color: string;
+  background: string;
+  size?: number;
+}) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        backgroundColor: background,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Ionicons name={icon} size={size * 0.5} color={color} />
     </View>
   );
 }
@@ -109,34 +234,89 @@ export function Field({
 export function OptionCard({
   title,
   hint,
+  icon,
   selected,
   onPress,
 }: {
   title: string;
   hint?: string;
+  icon?: IconName;
   selected: boolean;
   onPress: () => void;
 }) {
+  const t = useTheme();
+  const s = useStyles((th) => ({
+    card: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: th.spacing.md,
+      padding: th.spacing.md,
+      borderRadius: th.radius.lg,
+      borderWidth: 2,
+      borderColor: 'transparent',
+      backgroundColor: th.colors.surface,
+      ...th.elevation,
+    },
+    selected: { borderColor: th.colors.primary, backgroundColor: th.colors.primarySoft },
+    text: { flex: 1, gap: 2 },
+  }));
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[styles.option, selected && styles.optionSelected]}
+      style={[s.card, selected && s.selected]}
     >
-      <View style={[styles.radio, selected && styles.radioSelected]} />
-      <View style={styles.flex}>
-        <Text style={font.heading}>{title}</Text>
-        {hint ? <Text style={font.caption}>{hint}</Text> : null}
+      {icon ? (
+        <IconCircle
+          icon={icon}
+          color={selected ? t.colors.onPrimary : t.colors.primary}
+          background={selected ? t.colors.primary : t.colors.primarySoft}
+        />
+      ) : null}
+      <View style={s.text}>
+        <Text style={t.font.heading}>{title}</Text>
+        {hint ? <Text style={t.font.caption}>{hint}</Text> : null}
       </View>
+      <Ionicons
+        name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+        size={24}
+        color={selected ? t.colors.primary : t.colors.border}
+      />
     </Pressable>
   );
 }
 
-export function Card({ children, title }: { children: ReactNode; title?: string }) {
+export function Card({
+  children,
+  title,
+  icon,
+}: {
+  children: ReactNode;
+  title?: string;
+  icon?: IconName;
+}) {
+  const t = useTheme();
+  const s = useStyles((th) => ({
+    card: {
+      backgroundColor: th.colors.surface,
+      borderRadius: th.radius.lg,
+      padding: th.spacing.md + 2,
+      gap: th.spacing.sm + 2,
+      borderWidth: th.scheme === 'dark' ? 1 : 0,
+      borderColor: th.colors.border,
+      ...th.elevation,
+    },
+    head: { flexDirection: 'row', alignItems: 'center', gap: th.spacing.sm },
+  }));
   return (
-    <View style={styles.card}>
-      {title ? <Text style={[font.heading, styles.cardTitle]}>{title}</Text> : null}
+    <View style={s.card}>
+      {title ? (
+        <View style={s.head}>
+          {icon ? <Ionicons name={icon} size={20} color={t.colors.primary} /> : null}
+          <Text style={t.font.heading}>{title}</Text>
+        </View>
+      ) : null}
       {children}
     </View>
   );
@@ -149,13 +329,81 @@ export function Notice({
   children: ReactNode;
   tone?: 'warning' | 'info';
 }) {
+  const t = useTheme();
+  const warning = tone === 'warning';
   return (
-    <View style={[styles.notice, tone === 'info' && styles.noticeInfo]}>
+    <View
+      style={{
+        flexDirection: 'row',
+        gap: t.spacing.sm,
+        backgroundColor: warning ? t.colors.warningSoft : t.colors.infoSoft,
+        borderRadius: t.radius.md,
+        padding: t.spacing.md - 4,
+      }}
+    >
+      <Ionicons
+        name={warning ? 'alert-circle' : 'information-circle'}
+        size={18}
+        color={warning ? t.colors.warning : t.colors.info}
+      />
       <Text
-        style={[font.caption, { color: tone === 'warning' ? colors.warning : colors.primaryDark }]}
+        style={[t.font.caption, { flex: 1, color: warning ? t.colors.warning : t.colors.info }]}
       >
         {children}
       </Text>
+    </View>
+  );
+}
+
+/** Comutator cu mai multe optiuni (de exemplu tema sau limba). */
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string; icon?: IconName }[];
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  const t = useTheme();
+  const s = useStyles((th) => ({
+    wrap: {
+      flexDirection: 'row',
+      backgroundColor: th.colors.surfaceAlt,
+      borderRadius: th.radius.pill,
+      padding: 4,
+      gap: 4,
+    },
+    item: {
+      flex: 1,
+      flexDirection: 'row',
+      gap: 6,
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: 42,
+      borderRadius: th.radius.pill,
+    },
+    active: { backgroundColor: th.colors.surface, ...th.elevation },
+    label: { fontSize: 14, fontWeight: '600' },
+  }));
+  return (
+    <View style={s.wrap} accessibilityRole="radiogroup">
+      {options.map((o) => {
+        const active = o.value === value;
+        const color = active ? t.colors.text : t.colors.textMuted;
+        return (
+          <Pressable
+            key={o.value}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active }}
+            onPress={() => onChange(o.value)}
+            style={[s.item, active && s.active]}
+          >
+            {o.icon ? <Ionicons name={o.icon} size={16} color={color} /> : null}
+            <Text style={[s.label, { color }]}>{o.label}</Text>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }
@@ -165,69 +413,3 @@ export function parseNumber(text: string): number | undefined {
   const value = Number(text.replace(',', '.').trim());
   return text.trim() === '' || Number.isNaN(value) ? undefined : value;
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  safe: { flex: 1, backgroundColor: colors.background },
-  content: { padding: spacing.lg, gap: spacing.md, flexGrow: 1 },
-  footer: { padding: spacing.lg, paddingTop: spacing.sm, gap: spacing.sm },
-  subtitle: { color: colors.textMuted, marginBottom: spacing.sm },
-  step: { gap: spacing.xs, marginBottom: spacing.sm },
-  stepTrack: { height: 6, borderRadius: radius.pill, backgroundColor: colors.border },
-  stepFill: { height: 6, borderRadius: radius.pill, backgroundColor: colors.primary },
-  button: {
-    minHeight: 52,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-  },
-  button_primary: { backgroundColor: colors.primary },
-  button_secondary: { backgroundColor: colors.primarySoft },
-  button_ghost: { backgroundColor: 'transparent' },
-  buttonDisabled: { opacity: 0.45 },
-  buttonPressed: { opacity: 0.85 },
-  buttonText: { fontSize: 16, fontWeight: '600' },
-  buttonText_primary: { color: '#fff' },
-  buttonText_secondary: { color: colors.primaryDark },
-  buttonText_ghost: { color: colors.primaryDark },
-  field: { gap: spacing.xs },
-  label: { fontSize: 14, fontWeight: '600', color: colors.text },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-  },
-  inputError: { borderColor: colors.danger },
-  input: { flex: 1, minHeight: 50, fontSize: 16, color: colors.text },
-  suffix: { ...font.caption, marginLeft: spacing.sm },
-  error: { fontSize: 13, color: colors.danger },
-  option: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  optionSelected: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
-  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border },
-  radioSelected: { borderColor: colors.primary, borderWidth: 6 },
-  card: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: spacing.md,
-    gap: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  cardTitle: { marginBottom: spacing.xs },
-  notice: { backgroundColor: colors.warningSoft, borderRadius: radius.sm, padding: spacing.sm },
-  noticeInfo: { backgroundColor: colors.primarySoft },
-});

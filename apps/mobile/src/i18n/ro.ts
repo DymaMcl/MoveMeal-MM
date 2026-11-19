@@ -17,6 +17,20 @@ export const ro = {
     subtitle: 'Antrenamente și alimentație adaptate ție, cu sprijinul unui nutriționist licențiat.',
     register: 'Creează cont',
     login: 'Am deja cont',
+    features: {
+      workouts: 'Antrenamente',
+      nutrition: 'Nutriție',
+      nutritionist: 'Nutriționist',
+    },
+  },
+  settings: {
+    title: 'Setări',
+    theme: 'Aspect',
+    themeSystem: 'Sistem',
+    themeLight: 'Zi',
+    themeDark: 'Noapte',
+    language: 'Limba',
+    account: 'Cont',
   },
   auth: {
     loginTitle: 'Autentificare',

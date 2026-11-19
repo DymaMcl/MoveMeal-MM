@@ -1,22 +1,35 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
-import { colors, font } from '@/theme';
 
 interface Props {
   consumed: number;
   target: number;
-  remainingLabel: string;
+  label: string;
   size?: number;
+  stroke?: number;
+  /** Culorile se aleg in functie de fundal (de exemplu alb pe un card cu gradient). */
+  color: string;
+  trackColor: string;
+  textColor: string;
+  mutedColor: string;
 }
 
-/** Indicatorul circular: calorii consumate fata de obiectivul zilnic. */
-export function CalorieRing({ consumed, target, remainingLabel, size = 200 }: Props) {
-  const stroke = 16;
+/** Indicatorul circular: calorii ramase din obiectivul zilnic. */
+export function CalorieRing({
+  consumed,
+  target,
+  label,
+  size = 190,
+  stroke = 14,
+  color,
+  trackColor,
+  textColor,
+  mutedColor,
+}: Props) {
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
   const progress = target > 0 ? Math.min(consumed / target, 1) : 0;
   const remaining = Math.max(target - consumed, 0);
-  const over = consumed > target;
 
   return (
     <View style={{ width: size, height: size }}>
@@ -25,40 +38,41 @@ export function CalorieRing({ consumed, target, remainingLabel, size = 200 }: Pr
           cx={size / 2}
           cy={size / 2}
           r={r}
-          stroke={colors.primarySoft}
+          stroke={trackColor}
           strokeWidth={stroke}
           fill="none"
         />
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={r}
-          stroke={over ? colors.accent : colors.primary}
-          strokeWidth={stroke}
-          fill="none"
-          strokeLinecap="round"
-          strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={circumference * (1 - progress)}
-          transform={`rotate(-90 ${size / 2} ${size / 2})`}
-        />
+        {progress > 0 ? (
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={color}
+            strokeWidth={stroke}
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={`${circumference} ${circumference}`}
+            strokeDashoffset={circumference * (1 - progress)}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        ) : null}
       </Svg>
-      <View style={styles.center}>
-        <Text style={styles.value}>{remaining}</Text>
-        <Text style={font.caption}>kcal {remainingLabel}</Text>
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <Text style={{ fontSize: 40, fontWeight: '800', color: textColor, letterSpacing: -1 }}>
+          {remaining}
+        </Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: mutedColor }}>{label}</Text>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  center: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  value: { fontSize: 36, fontWeight: '700', color: colors.text },
-});

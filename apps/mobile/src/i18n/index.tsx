@@ -1,4 +1,13 @@
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { en } from './en';
 import { ro, type Dictionary } from './ro';
 
@@ -51,8 +60,23 @@ interface I18nValue {
 
 const I18nContext = createContext<I18nValue | null>(null);
 
+const LANGUAGE_KEY = 'movemeal.language';
+
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>('ro');
+  const [language, setLanguageState] = useState<Language>('ro');
+
+  useEffect(() => {
+    AsyncStorage.getItem(LANGUAGE_KEY)
+      .then((saved) => {
+        if (saved === 'ro' || saved === 'en') setLanguageState(saved);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const setLanguage = useCallback((next: Language) => {
+    setLanguageState(next);
+    AsyncStorage.setItem(LANGUAGE_KEY, next).catch(() => undefined);
+  }, []);
   const t = useCallback(
     (key: string, params?: Params) => interpolate(lookup(dictionaries[language], key), params),
     [language],
@@ -65,7 +89,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       formatNumber: (n, digits) => formatNumber(n, language, digits),
       formatWeeks: (n) => formatWeeks(n, language),
     }),
-    [language, t],
+    [language, setLanguage, t],
   );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
