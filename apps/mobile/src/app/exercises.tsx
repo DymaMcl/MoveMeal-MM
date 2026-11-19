@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { EXERCISES, type MuscleGroup } from '@movemeal/shared';
+import { EXERCISES, type MuscleGroup, exerciseName } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
@@ -61,7 +61,9 @@ export default function ExerciseLibrary() {
     () =>
       EXERCISES.filter((e) => (!group || e.group === group) && (!level || e.difficulty === level))
         .slice()
-        .sort((a, b) => a.name[language].localeCompare(b.name[language], language)),
+        .sort((a, b) =>
+          exerciseName(a, language).localeCompare(exerciseName(b, language), language),
+        ),
     [group, level, language],
   );
 

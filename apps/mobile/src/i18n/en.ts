@@ -12,6 +12,10 @@ export const en: Dictionary = {
     years: 'years',
     weeks: 'weeks',
     g: 'g',
+    /** Abrevieri: proteine, carbohidrati, grasimi. */
+    proteinShort: 'P',
+    carbsShort: 'C',
+    fatShort: 'F',
     comingSoon: 'This section is under development.',
     disclaimer: 'The information in this app does not replace medical advice.',
   },
@@ -287,6 +291,8 @@ export const en: Dictionary = {
       gymEquipment: 'Gym machines',
       inPlan: 'In your plan',
       imageCredit: 'Images: free-exercise-db (public domain)',
+      setsLabel: 'sets',
+      restLabel: 's rest',
     },
     libraryTitle: 'Exercise library',
     all: 'All',
@@ -396,6 +402,8 @@ export const en: Dictionary = {
       substitutesHint: 'Alternatives with similar nutritional values:',
       noSubstitutes: 'No suitable substitute found.',
       addToLog: 'Add to journal',
+      glutenFree: 'Gluten-free',
+      lactoseFree: 'Lactose-free',
     },
     shoppingTitle: 'Shopping list',
     shoppingHint: 'Ingredients for the whole week, added up.',
@@ -450,7 +458,7 @@ export const en: Dictionary = {
     adjustmentTitle: 'Plan adjustment',
     insufficient: 'Not enough data for an adjustment',
     insufficientHint:
-      'You need at least 6 weigh-ins and a food journal on 10 of the last 14 days. Now: {weights} weigh-ins, {days} days logged.',
+      'You need at least 6 weigh-ins and a food journal on 10 of the last 14 days. Now: {weights} of 6 weigh-ins, {days} of 10 days logged.',
     onTrack: 'Your pace is within the recommended range ({rate}% per week). Keep going!',
     atLimit: 'Your pace is outside the range, but the target is already at the safety limit.',
     proposal:

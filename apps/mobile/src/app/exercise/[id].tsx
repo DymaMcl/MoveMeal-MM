@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { getExercise, type Exercise } from '@movemeal/shared';
+import { getExercise, type Exercise, exerciseName, exerciseSteps } from '@movemeal/shared';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -86,7 +86,7 @@ export default function ExerciseDetail() {
         </View>
 
         <ExerciseImage exercise={exercise} animated style={s.image} />
-        <Text style={s.title}>{exercise.name[language]}</Text>
+        <Text style={s.title}>{exerciseName(exercise, language)}</Text>
 
         <View style={s.facts}>
           <View style={s.fact}>
@@ -108,7 +108,7 @@ export default function ExerciseDetail() {
             <View style={s.plan}>
               <View style={s.planItem}>
                 <Text style={s.planValue}>{params.sets}</Text>
-                <Text style={theme.font.caption}>{language === 'ro' ? 'serii' : 'sets'}</Text>
+                <Text style={theme.font.caption}>{t('workout.detail.setsLabel')}</Text>
               </View>
               <View style={s.planItem}>
                 <Text style={s.planValue}>{params.target}</Text>
@@ -117,7 +117,7 @@ export default function ExerciseDetail() {
               {params.rest ? (
                 <View style={s.planItem}>
                   <Text style={s.planValue}>{params.rest}</Text>
-                  <Text style={theme.font.caption}>{language === 'ro' ? 's pauză' : 's rest'}</Text>
+                  <Text style={theme.font.caption}>{t('workout.detail.restLabel')}</Text>
                 </View>
               ) : null}
             </View>
@@ -125,7 +125,7 @@ export default function ExerciseDetail() {
         ) : null}
 
         <Card title={t('workout.detail.howTo')} icon="list">
-          {exercise.steps[language].map((text, i) => (
+          {exerciseSteps(exercise, language).map((text, i) => (
             <View key={i} style={s.step}>
               <View style={s.stepNumber}>
                 <Text style={s.stepNumberText}>{i + 1}</Text>

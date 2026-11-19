@@ -10,6 +10,10 @@ export const ro = {
     years: 'ani',
     weeks: 'săptămâni',
     g: 'g',
+    /** Abrevieri: proteine, carbohidrati, grasimi. */
+    proteinShort: 'P',
+    carbsShort: 'C',
+    fatShort: 'G',
     comingSoon: 'Această secțiune este în curs de dezvoltare.',
     disclaimer: 'Informațiile din aplicație nu înlocuiesc sfatul medicului.',
   },
@@ -291,6 +295,8 @@ export const ro = {
       gymEquipment: 'Aparate de sală',
       inPlan: 'În programul tău',
       imageCredit: 'Imagini: free-exercise-db (domeniu public)',
+      setsLabel: 'serii',
+      restLabel: 's pauză',
     },
     libraryTitle: 'Biblioteca de exerciții',
     all: 'Toate',
@@ -401,6 +407,8 @@ export const ro = {
       substitutesHint: 'Alternative cu valori nutriționale asemănătoare:',
       noSubstitutes: 'Nu am găsit un înlocuitor potrivit.',
       addToLog: 'Adaugă în jurnal',
+      glutenFree: 'Fără gluten',
+      lactoseFree: 'Fără lactoză',
     },
     shoppingTitle: 'Lista de cumpărături',
     shoppingHint: 'Ingredientele pentru toată săptămâna, însumate.',
@@ -455,7 +463,7 @@ export const ro = {
     adjustmentTitle: 'Ajustarea programului',
     insufficient: 'Date insuficiente pentru ajustare',
     insufficientHint:
-      'Ai nevoie de cel puțin 6 cântăriri și de jurnalul completat în 10 din ultimele 14 zile. Acum: {weights} cântăriri, {days} zile cu jurnal.',
+      'Ai nevoie de cel puțin 6 cântăriri și de jurnalul completat în 10 din ultimele 14 zile. Acum: {weights} din 6 cântăriri, {days} din 10 zile cu jurnal.',
     onTrack: 'Ritmul tău este în intervalul recomandat ({rate}% pe săptămână). Continuă așa!',
     atLimit: 'Ritmul este în afara intervalului, dar ținta este deja la limita de siguranță.',
     proposal:

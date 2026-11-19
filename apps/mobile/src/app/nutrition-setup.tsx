@@ -6,6 +6,7 @@ import {
   type Budget,
   type Diet,
   type NutritionPreferences,
+  foodName,
 } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
@@ -75,7 +76,7 @@ export default function NutritionSetup() {
     const q = normalize(query);
     return FOODS.filter(
       (f) => !q || normalize(f.name.ro).includes(q) || normalize(f.name.en).includes(q),
-    ).sort((a, b) => a.name[language].localeCompare(b.name[language], language));
+    ).sort((a, b) => foodName(a, language).localeCompare(foodName(b, language), language));
   }, [query, language]);
 
   /** Exclus → preferat → neutru. */
@@ -229,7 +230,7 @@ export default function NutritionSetup() {
                 >
                   <Text style={s.foodText}>
                     {isExcluded ? '✕ ' : isPreferred ? '♥ ' : ''}
-                    {f.name[language]}
+                    {foodName(f, language)}
                   </Text>
                 </Pressable>
               );

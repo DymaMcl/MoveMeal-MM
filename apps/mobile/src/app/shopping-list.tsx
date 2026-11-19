@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { getFood, type FoodCategory, type ShoppingItem } from '@movemeal/shared';
+import { getFood, type FoodCategory, type ShoppingItem, foodName } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Share, Text, View } from 'react-native';
@@ -21,8 +21,8 @@ const ORDER: FoodCategory[] = [
   'oils_condiments',
 ];
 
-function amount(grams: number) {
-  return grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.', ',')} kg` : `${grams} g`;
+function amount(grams: number, g: string, kg: string) {
+  return grams >= 1000 ? `${(grams / 1000).toFixed(1).replace('.', ',')} ${kg}` : `${grams} ${g}`;
 }
 
 /** Lista de cumparaturi a saptamanii, grupata pe categorii; poate fi trimisa sau salvata. */
@@ -67,9 +67,10 @@ export default function ShoppingList() {
       .map(
         (c) =>
           `${t(`nutrition.categories.${c}`)}\n` +
-          list[c]!.map((i) => `- ${getFood(i.foodId)!.name[language]}: ${amount(i.grams)}`).join(
-            '\n',
-          ),
+          list[c]!.map(
+            (i) =>
+              `- ${foodName(getFood(i.foodId)!, language)}: ${amount(i.grams, t('common.g'), t('common.kg'))}`,
+          ).join('\n'),
       )
       .join('\n\n');
   }
@@ -129,9 +130,11 @@ export default function ShoppingList() {
                           done && { textDecorationLine: 'line-through', opacity: 0.6 },
                         ]}
                       >
-                        {getFood(item.foodId)!.name[language]}
+                        {foodName(getFood(item.foodId)!, language)}
                       </Text>
-                      <Text style={s.grams}>{amount(item.grams)}</Text>
+                      <Text style={s.grams}>
+                        {amount(item.grams, t('common.g'), t('common.kg'))}
+                      </Text>
                     </Pressable>
                   );
                 })}

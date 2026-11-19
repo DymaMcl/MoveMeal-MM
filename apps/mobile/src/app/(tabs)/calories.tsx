@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { foodName, getFood, getRecipe, recipeName } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
@@ -9,11 +10,21 @@ import { CalorieRing } from '@/components/calorie-ring';
 import { NutrientBar } from '@/components/nutrient-bar';
 import { useToast } from '@/components/toast';
 import { Card } from '@/components/ui';
-import { useI18n } from '@/i18n';
+import { localeOf, useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { isoDate } from '@/state/dates';
 import { sumEntries, useNutrition } from '@/state/nutrition-state';
 import { useStyles, useTheme } from '@/theme';
+
+/** Denumirea din catalog in limba aleasa; textul salvat pe server ramane rezerva. */
+function entryName(e: FoodLogEntry, language: 'ro' | 'en' | 'ru'): string {
+  if (e.source === 'food') {
+    const food = getFood(e.refId);
+    return food ? foodName(food, language) : e.name;
+  }
+  const recipe = getRecipe(e.refId);
+  return recipe ? recipeName(recipe, language) : e.name;
+}
 
 const MEALS: LogMeal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 /** Jurnalul poate fi completat sau corectat pentru ultimele 14 zile. */
@@ -104,24 +115,28 @@ export default function Calories() {
       ? t('journal.today')
       : offset === 1
         ? t('journal.yesterday')
-        : date.toLocaleDateString(language === 'ro' ? 'ro-RO' : 'en-GB', {
+        : date.toLocaleDateString(localeOf(language), {
             weekday: 'long',
             day: 'numeric',
             month: 'long',
           });
 
   function confirmDelete(entry: FoodLogEntry) {
-    Alert.alert(t('journal.title'), t('journal.deleteConfirm', { name: entry.name }), [
-      { text: t('journal.cancel'), style: 'cancel' },
-      {
-        text: t('journal.delete'),
-        style: 'destructive',
-        onPress: async () => {
-          await deleteEntry(entry);
-          toast(t('journal.delete') + ' ✓');
+    Alert.alert(
+      t('journal.title'),
+      t('journal.deleteConfirm', { name: entryName(entry, language) }),
+      [
+        { text: t('journal.cancel'), style: 'cancel' },
+        {
+          text: t('journal.delete'),
+          style: 'destructive',
+          onPress: async () => {
+            await deleteEntry(entry);
+            toast(t('journal.delete') + ' ✓');
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   return (
@@ -162,7 +177,7 @@ export default function Calories() {
             target={target}
             size={120}
             stroke={10}
-            label={`kcal ${t('home.remaining')}`}
+            label={`${t('common.kcal')} ${t('home.remaining')}`}
             color="#FFFFFF"
             trackColor="rgba(255,255,255,0.25)"
             textColor="#FFFFFF"
@@ -171,11 +186,15 @@ export default function Calories() {
           <View style={{ gap: 10 }}>
             <View style={s.heroStat}>
               <Text style={s.heroLabel}>{t('journal.consumed')}</Text>
-              <Text style={s.heroValue}>{Math.round(totals.kcal)} kcal</Text>
+              <Text style={s.heroValue}>
+                {Math.round(totals.kcal)} {t('common.kcal')}
+              </Text>
             </View>
             <View style={s.heroStat}>
               <Text style={s.heroLabel}>{t('home.target')}</Text>
-              <Text style={s.heroValue}>{target} kcal</Text>
+              <Text style={s.heroValue}>
+                {target} {t('common.kcal')}
+              </Text>
             </View>
           </View>
         </LinearGradient>
@@ -185,21 +204,21 @@ export default function Calories() {
             label={t('onboarding.summary.protein')}
             value={totals.protein}
             target={plan.macros.proteinG}
-            unit="g"
+            unit={t('common.g')}
             color={theme.colors.protein}
           />
           <NutrientBar
             label={t('onboarding.summary.carbs')}
             value={totals.carbs}
             target={plan.macros.carbsG}
-            unit="g"
+            unit={t('common.g')}
             color={theme.colors.carbs}
           />
           <NutrientBar
             label={t('onboarding.summary.fat')}
             value={totals.fat}
             target={plan.macros.fatG}
-            unit="g"
+            unit={t('common.g')}
             color={theme.colors.fat}
           />
         </Card>
@@ -225,19 +244,22 @@ export default function Calories() {
             <Card key={meal}>
               <View style={s.sectionHead}>
                 <Text style={theme.font.heading}>{t(`journal.meals.${meal}`)}</Text>
-                <Text style={s.sectionKcal}>{kcal} kcal</Text>
+                <Text style={s.sectionKcal}>
+                  {kcal} {t('common.kcal')}
+                </Text>
               </View>
               {items.map((e) => (
                 <View key={e.id} style={s.entry}>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.entryName}>{e.name}</Text>
+                    <Text style={s.entryName}>{entryName(e, language)}</Text>
                     <Text style={theme.font.caption}>
                       {e.unit === 'g'
-                        ? `${Math.round(e.amount)} g`
+                        ? `${Math.round(e.amount)} ${t('common.g')}`
                         : e.amount === 1
                           ? t('nutrition.portion')
                           : t('nutrition.portions', { n: String(e.amount).replace('.', ',') })}{' '}
-                      · {Math.round(e.kcal)} kcal · P {Math.round(e.protein)} g
+                      · {Math.round(e.kcal)} {t('common.kcal')} · {t('common.proteinShort')}{' '}
+                      {Math.round(e.protein)} {t('common.g')}
                     </Text>
                   </View>
                   <Pressable

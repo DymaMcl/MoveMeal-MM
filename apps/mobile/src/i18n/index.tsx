@@ -10,10 +10,21 @@ import {
 } from 'react';
 import { en } from './en';
 import { ro, type Dictionary } from './ro';
+import { ru } from './ru';
 
-export type Language = 'ro' | 'en';
+export type Language = 'ro' | 'en' | 'ru';
 
-const dictionaries: Record<Language, Dictionary> = { ro, en };
+export const LANGUAGES: { value: Language; label: string; locale: string }[] = [
+  { value: 'ro', label: 'Română', locale: 'ro-RO' },
+  { value: 'en', label: 'English', locale: 'en-GB' },
+  { value: 'ru', label: 'Русский', locale: 'ru-RU' },
+];
+
+/** Codul de localizare pentru formatarea datelor (de exemplu „joi, 19 noiembrie”). */
+export const localeOf = (language: Language) =>
+  LANGUAGES.find((l) => l.value === language)?.locale ?? 'ro-RO';
+
+const dictionaries: Record<Language, Dictionary> = { ro, en, ru };
 
 type Params = Record<string, string | number>;
 
@@ -31,11 +42,11 @@ function interpolate(text: string, params?: Params): string {
   );
 }
 
-/** Numar cu cel mult `digits` zecimale; in romana separatorul zecimal este virgula. */
+/** Numar cu cel mult `digits` zecimale; in romana si rusa separatorul zecimal este virgula. */
 export function formatNumber(value: number, language: Language, digits = 2): string {
   const factor = 10 ** digits;
   const text = String(Math.round(value * factor) / factor);
-  return language === 'ro' ? text.replace('.', ',') : text;
+  return language === 'en' ? text : text.replace('.', ',');
 }
 
 /**
@@ -44,6 +55,18 @@ export function formatNumber(value: number, language: Language, digits = 2): str
  */
 export function formatWeeks(n: number, language: Language): string {
   if (language === 'en') return n === 1 ? '1 week' : `${n} weeks`;
+  if (language === 'ru') {
+    // 1 неделя, 2–4 недели, 5–20 недель (11–14 недель)
+    const mod10 = n % 10;
+    const mod100 = n % 100;
+    const word =
+      mod10 === 1 && mod100 !== 11
+        ? 'неделя'
+        : mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)
+          ? 'недели'
+          : 'недель';
+    return `${n} ${word}`;
+  }
   if (n === 1) return 'o săptămână';
   const lastTwo = n % 100;
   const withDe = lastTwo === 0 || lastTwo >= 20;
@@ -68,7 +91,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     AsyncStorage.getItem(LANGUAGE_KEY)
       .then((saved) => {
-        if (saved === 'ro' || saved === 'en') setLanguageState(saved);
+        if (saved === 'ro' || saved === 'en' || saved === 'ru') setLanguageState(saved);
       })
       .catch(() => undefined);
   }, []);

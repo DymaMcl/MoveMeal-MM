@@ -9,6 +9,9 @@ import {
   scaleNutrients,
   substituteFoods,
   type MealSlot,
+  foodName,
+  recipeName,
+  recipeSteps,
 } from '@movemeal/shared';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -124,7 +127,7 @@ export default function RecipeDetail() {
           style={s.hero}
         >
           <Ionicons name="restaurant" size={40} color="rgba(255,255,255,0.9)" />
-          <Text style={s.heroTitle}>{recipe.name[language]}</Text>
+          <Text style={s.heroTitle}>{recipeName(recipe, language)}</Text>
           <Text style={s.heroMeta}>
             {t('nutrition.minutes', { n: recipe.minutes })} · {portionText}
           </Text>
@@ -136,12 +139,12 @@ export default function RecipeDetail() {
             ))}
             {!allergens.includes('gluten') ? (
               <View style={s.tag}>
-                <Text style={s.tagText}>{language === 'ro' ? 'Fără gluten' : 'Gluten-free'}</Text>
+                <Text style={s.tagText}>{t('nutrition.recipe.glutenFree')}</Text>
               </View>
             ) : null}
             {!allergens.includes('milk') ? (
               <View style={s.tag}>
-                <Text style={s.tagText}>{language === 'ro' ? 'Fără lactoză' : 'Lactose-free'}</Text>
+                <Text style={s.tagText}>{t('nutrition.recipe.lactoseFree')}</Text>
               </View>
             ) : null}
           </View>
@@ -151,7 +154,7 @@ export default function RecipeDetail() {
           <View style={s.macros}>
             <View style={s.macro}>
               <Text style={s.macroValue}>{nutrients.kcal}</Text>
-              <Text style={theme.font.caption}>kcal</Text>
+              <Text style={theme.font.caption}>{t('common.kcal')}</Text>
             </View>
             <View style={s.macro}>
               <Text style={[s.macroValue, { color: theme.colors.protein }]}>
@@ -193,8 +196,10 @@ export default function RecipeDetail() {
                   style={s.ingredient}
                   onPress={() => setOpenIngredient(open ? null : i.foodId)}
                 >
-                  <Text style={s.ingredientName}>{food.name[language]}</Text>
-                  <Text style={s.ingredientGrams}>{grams} g</Text>
+                  <Text style={s.ingredientName}>{foodName(food, language)}</Text>
+                  <Text style={s.ingredientGrams}>
+                    {grams} {t('common.g')}
+                  </Text>
                   <Ionicons name="swap-horizontal" size={16} color={theme.colors.textMuted} />
                 </Pressable>
                 {open ? (
@@ -206,7 +211,7 @@ export default function RecipeDetail() {
                     </Text>
                     {subs.map((sub) => (
                       <Text key={sub.foodId} style={theme.font.body}>
-                        • {getFood(sub.foodId)!.name[language]} — {sub.grams} g
+                        • {foodName(getFood(sub.foodId)!, language)} — {sub.grams} {t('common.g')}
                       </Text>
                     ))}
                   </View>
@@ -217,7 +222,7 @@ export default function RecipeDetail() {
         </Card>
 
         <Card title={t('nutrition.recipe.steps')} icon="list">
-          {recipe.steps[language].map((text, i) => (
+          {recipeSteps(recipe, language).map((text, i) => (
             <View key={i} style={s.step}>
               <View style={s.stepNumber}>
                 <Text style={s.stepNumberText}>{i + 1}</Text>

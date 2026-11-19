@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { getRecipe, type PlannedMeal, type Weekday } from '@movemeal/shared';
+import { getRecipe, type PlannedMeal, type Weekday, recipeName } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useMemo, useState } from 'react';
@@ -214,11 +214,14 @@ export default function Meals() {
               <Text style={s.totalLabel}>
                 {t(`workout.weekdays.${selected}`)} · {t('nutrition.dayTotal')}
               </Text>
-              <Text style={s.totalValue}>{day.totals.kcal} kcal</Text>
+              <Text style={s.totalValue}>
+                {day.totals.kcal} {t('common.kcal')}
+              </Text>
               <Text style={s.totalMacros}>
-                {t('nutrition.target', { kcal: program.plan.targetKcal })} · P{' '}
-                {Math.round(day.totals.protein)} g · C {Math.round(day.totals.carbs)} g · G{' '}
-                {Math.round(day.totals.fat)} g
+                {t('nutrition.target', { kcal: program.plan.targetKcal })} ·{' '}
+                {t('common.proteinShort')} {Math.round(day.totals.protein)} {t('common.g')} ·{' '}
+                {t('common.carbsShort')} {Math.round(day.totals.carbs)} {t('common.g')} ·{' '}
+                {t('common.fatShort')} {Math.round(day.totals.fat)} {t('common.g')}
               </Text>
             </LinearGradient>
 
@@ -257,11 +260,11 @@ export default function Meals() {
                     />
                     <View style={{ flex: 1, gap: 2 }}>
                       <Text style={s.slot}>{t(`nutrition.slots.${meal.slot}`)}</Text>
-                      <Text style={s.name}>{recipe.name[language]}</Text>
+                      <Text style={s.name}>{recipeName(recipe, language)}</Text>
                       <Text style={s.meta}>
-                        {portionsLabel(t, meal.portions)} · {meal.nutrients.kcal} kcal · P{' '}
-                        {Math.round(meal.nutrients.protein)} g ·{' '}
-                        {t('nutrition.minutes', { n: recipe.minutes })}
+                        {portionsLabel(t, meal.portions)} · {meal.nutrients.kcal} {t('common.kcal')}{' '}
+                        · {t('common.proteinShort')} {Math.round(meal.nutrients.protein)}{' '}
+                        {t('common.g')} · {t('nutrition.minutes', { n: recipe.minutes })}
                       </Text>
                     </View>
                     <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />

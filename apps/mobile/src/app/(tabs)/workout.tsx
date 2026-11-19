@@ -44,7 +44,14 @@ export default function Workout() {
       gap: 4,
       overflow: 'hidden',
     },
-    dayShort: { fontSize: 12, fontWeight: '700', color: th.colors.textMuted },
+    dayShort: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: th.colors.textMuted,
+      alignSelf: 'stretch',
+      textAlign: 'center',
+      paddingHorizontal: 3,
+    },
     dayNumber: { fontSize: 17, fontWeight: '800', color: th.colors.text },
     dot: { width: 6, height: 6, borderRadius: 3 },
     hero: { borderRadius: th.radius.xl, padding: th.spacing.lg, gap: th.spacing.sm },
@@ -169,7 +176,12 @@ export default function Workout() {
             const training = sessionsByDay.has(wd);
             const content = (
               <>
-                <Text style={[s.dayShort, active && { color: 'rgba(255,255,255,0.85)' }]}>
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.6}
+                  style={[s.dayShort, active && { color: 'rgba(255,255,255,0.85)' }]}
+                >
                   {wd === today ? t('workout.today') : t(`workout.weekdaysShort.${wd}`)}
                 </Text>
                 <Text style={[s.dayNumber, active && { color: '#FFFFFF' }]}>{date.getDate()}</Text>

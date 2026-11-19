@@ -6,6 +6,7 @@ import {
   roundNutrients,
   searchFoods,
   type Food,
+  foodName,
 } from '@movemeal/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -22,7 +23,7 @@ import { useStyles, useTheme } from '@/theme';
 
 /** Cautarea unui aliment si adaugarea lui in jurnal, la masa aleasa. */
 export default function FoodSearch() {
-  const { t, language } = useI18n();
+  const { t, language, formatNumber } = useI18n();
   const theme = useTheme();
   const toast = useToast();
   const { session } = useAppState();
@@ -98,7 +99,7 @@ export default function FoodSearch() {
     return {
       recent: recent.map((id) => getFood(id)).filter((f): f is Food => !!f),
       results: [...FOODS].sort((a, b) =>
-        a.name[language].localeCompare(b.name[language], language),
+        foodName(a, language).localeCompare(foodName(b, language), language),
       ),
     };
   }, [query, recent, language]);
@@ -142,9 +143,10 @@ export default function FoodSearch() {
   const renderFood = (f: Food) => (
     <Pressable key={f.id} accessibilityRole="button" style={s.row} onPress={() => select(f)}>
       <View style={{ flex: 1 }}>
-        <Text style={theme.font.body}>{f.name[language]}</Text>
+        <Text style={theme.font.body}>{foodName(f, language)}</Text>
         <Text style={theme.font.caption}>
-          {f.kcal} kcal · P {f.protein} g · {t('journal.per100')}
+          {f.kcal} {t('common.kcal')} · {t('common.proteinShort')} {formatNumber(f.protein, 1)}{' '}
+          {t('common.g')} · {t('journal.per100')}
           {f.pieceGrams ? ` · ${t('journal.pieceShort', { grams: f.pieceGrams })}` : ''}
         </Text>
       </View>
@@ -169,7 +171,7 @@ export default function FoodSearch() {
 
       {food && preview ? (
         <View style={s.panel}>
-          <Text style={theme.font.title}>{food.name[language]}</Text>
+          <Text style={theme.font.title}>{foodName(food, language)}</Text>
           {food.pieceGrams ? (
             <Segmented
               options={[
@@ -194,7 +196,7 @@ export default function FoodSearch() {
                 <Text style={theme.font.caption}>
                   {t('journal.pieceHint', { grams: food.pieceGrams })}
                   {unit === 'piece' && amount > 0 && amount !== 1
-                    ? ` · ${String(amount).replace('.', ',')} × ${food.pieceGrams} g = ${Math.round(grams)} g`
+                    ? ` · ${String(amount).replace('.', ',')} × ${food.pieceGrams} ${t('common.g')} = ${Math.round(grams)} ${t('common.g')}`
                     : ''}
                 </Text>
               ) : undefined
@@ -203,20 +205,24 @@ export default function FoodSearch() {
           <View style={s.values}>
             <View style={s.value}>
               <Text style={s.valueNumber}>{preview.kcal}</Text>
-              <Text style={theme.font.caption}>kcal</Text>
+              <Text style={theme.font.caption}>{t('common.kcal')}</Text>
             </View>
             <View style={s.value}>
               <Text style={[s.valueNumber, { color: theme.colors.protein }]}>
-                {preview.protein}
+                {formatNumber(preview.protein, 1)}
               </Text>
               <Text style={theme.font.caption}>{t('onboarding.summary.protein')}</Text>
             </View>
             <View style={s.value}>
-              <Text style={[s.valueNumber, { color: theme.colors.carbs }]}>{preview.carbs}</Text>
+              <Text style={[s.valueNumber, { color: theme.colors.carbs }]}>
+                {formatNumber(preview.carbs, 1)}
+              </Text>
               <Text style={theme.font.caption}>{t('onboarding.summary.carbs')}</Text>
             </View>
             <View style={s.value}>
-              <Text style={[s.valueNumber, { color: theme.colors.fat }]}>{preview.fat}</Text>
+              <Text style={[s.valueNumber, { color: theme.colors.fat }]}>
+                {formatNumber(preview.fat, 1)}
+              </Text>
               <Text style={theme.font.caption}>{t('onboarding.summary.fat')}</Text>
             </View>
           </View>

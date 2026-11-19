@@ -1,3 +1,4 @@
+import { exerciseName } from '@movemeal/shared';
 import { Ionicons } from '@expo/vector-icons';
 import type { Exercise, Prescription } from '@movemeal/shared';
 import { Pressable, Text, View } from 'react-native';
@@ -64,7 +65,7 @@ export function ExerciseRow({
           </View>
         ) : null}
         <Text style={[s.name, done && { textDecorationLine: 'line-through' }]}>
-          {exercise.name[language]}
+          {exerciseName(exercise, language)}
         </Text>
         {prescription ? (
           <>

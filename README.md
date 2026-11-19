@@ -64,7 +64,7 @@ npm run typecheck                                            # verificarea tipur
 - [x] Ecran de bun venit, înregistrare și autentificare
 - [x] Chestionarul inițial: date personale, înălțime și greutate, obiectiv, greutate dorită, nivel de activitate
 - [x] Pagina „Acasă”: salut personalizat, obiectiv caloric, macronutrienți, recomandarea zilei
-- [x] Interfață în română și engleză
+- [x] Interfață în română, engleză și rusă (inclusiv catalogul de alimente, rețete și exerciții)
 - [x] Temă luminoasă și întunecată, alegere din setări
 - [x] Server NestJS: `GET /api/health`, `POST /api/energy/plan`
 - [x] Conturi și sesiuni pe server (parole scrypt, blocare după 5 încercări greșite)

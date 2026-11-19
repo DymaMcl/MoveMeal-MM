@@ -31,7 +31,14 @@ export function WeekStrip({
       gap: 4,
       overflow: 'hidden',
     },
-    short: { fontSize: 12, fontWeight: '700', color: th.colors.textMuted },
+    short: {
+      fontSize: 12,
+      fontWeight: '700',
+      color: th.colors.textMuted,
+      alignSelf: 'stretch',
+      textAlign: 'center',
+      paddingHorizontal: 3,
+    },
     number: { fontSize: 17, fontWeight: '800', color: th.colors.text },
     dot: { width: 6, height: 6, borderRadius: 3 },
   }));
@@ -44,7 +51,12 @@ export function WeekStrip({
         const dot = marked?.(wd) ?? false;
         const content = (
           <>
-            <Text style={[s.short, active && { color: 'rgba(255,255,255,0.85)' }]}>
+            <Text
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.6}
+              style={[s.short, active && { color: 'rgba(255,255,255,0.85)' }]}
+            >
               {wd === today ? t('workout.today') : t(`workout.weekdaysShort.${wd}`)}
             </Text>
             <Text style={[s.number, active && { color: '#FFFFFF' }]}>{date.getDate()}</Text>

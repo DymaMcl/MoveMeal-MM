@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { getRecipe, type MealSlot, type PlannedMeal } from '@movemeal/shared';
+import { getRecipe, type MealSlot, type PlannedMeal, recipeName } from '@movemeal/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
@@ -74,7 +74,7 @@ export default function MealSwap() {
         style={[s.option, isCurrent && s.current]}
         onPress={async () => {
           await replaceMeal(weekday, slot, meal.recipeId);
-          toast(recipe.name[language]);
+          toast(recipeName(recipe, language));
           router.back();
         }}
       >
@@ -84,9 +84,10 @@ export default function MealSwap() {
           background={theme.colors.accentSoft}
         />
         <View style={{ flex: 1, gap: 2 }}>
-          <Text style={theme.font.heading}>{recipe.name[language]}</Text>
+          <Text style={theme.font.heading}>{recipeName(recipe, language)}</Text>
           <Text style={theme.font.caption}>
-            {meal.nutrients.kcal} kcal · P {Math.round(meal.nutrients.protein)} g ·{' '}
+            {meal.nutrients.kcal} {t('common.kcal')} · {t('common.proteinShort')}{' '}
+            {Math.round(meal.nutrients.protein)} {t('common.g')} ·{' '}
             {t('nutrition.minutes', { n: recipe.minutes })}
           </Text>
         </View>

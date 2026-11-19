@@ -3,8 +3,8 @@ import { router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Button, type IconName } from '@/components/ui';
-import { useI18n } from '@/i18n';
+import { Button, Segmented, type IconName } from '@/components/ui';
+import { LANGUAGES, useI18n } from '@/i18n';
 import { useStyles, useTheme } from '@/theme';
 
 const FEATURES: { key: string; icon: IconName }[] = [
@@ -103,12 +103,13 @@ export default function Welcome() {
           variant="secondary"
           onPress={() => router.push('/login')}
         />
-        <Button
-          title={language === 'ro' ? 'English' : 'Română'}
-          icon="language"
-          variant="ghost"
-          onPress={() => setLanguage(language === 'ro' ? 'en' : 'ro')}
-        />
+        <View style={{ marginTop: 4 }}>
+          <Segmented
+            options={LANGUAGES.map((l) => ({ value: l.value, label: l.label }))}
+            value={language}
+            onChange={setLanguage}
+          />
+        </View>
       </SafeAreaView>
     </View>
   );

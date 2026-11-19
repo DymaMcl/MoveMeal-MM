@@ -3,7 +3,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Card, Segmented } from '@/components/ui';
-import { useI18n, type Language } from '@/i18n';
+import { LANGUAGES, useI18n, type Language } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { useStyles, useTheme, useThemeSettings, type ThemeMode } from '@/theme';
 
@@ -72,10 +72,10 @@ export default function More() {
     { value: 'light', label: t('settings.themeLight'), icon: 'sunny' },
     { value: 'dark', label: t('settings.themeDark'), icon: 'moon' },
   ];
-  const languageOptions: { value: Language; label: string }[] = [
-    { value: 'ro', label: 'Română' },
-    { value: 'en', label: 'English' },
-  ];
+  const languageOptions: { value: Language; label: string }[] = LANGUAGES.map((l) => ({
+    value: l.value,
+    label: l.label,
+  }));
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>

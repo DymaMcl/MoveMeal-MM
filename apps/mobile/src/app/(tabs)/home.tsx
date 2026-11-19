@@ -1,4 +1,4 @@
-import { getRecipe } from '@movemeal/shared';
+import { getRecipe, recipeName } from '@movemeal/shared';
 import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useState } from 'react';
@@ -6,7 +6,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalorieRing } from '@/components/calorie-ring';
 import { Card, IconCircle, Notice, type IconName } from '@/components/ui';
-import { useI18n } from '@/i18n';
+import { localeOf, useI18n } from '@/i18n';
 import { api, type ProgressResponse } from '@/api/client';
 import { useAppState } from '@/state/app-state';
 import { isoDate, weekdayOf } from '@/state/dates';
@@ -25,11 +25,13 @@ function MacroBar({
   value,
   target,
   color,
+  unit,
 }: {
   label: string;
   value: number;
   target: number;
   color: string;
+  unit: string;
 }) {
   const s = useStyles((th) => ({
     wrap: { gap: 6 },
@@ -50,7 +52,7 @@ function MacroBar({
           <Text style={s.label}>{label}</Text>
         </View>
         <Text style={theme.font.caption}>
-          {value} / {target} g
+          {value} / {target} {unit}
         </Text>
       </View>
       <View style={s.track}>
@@ -189,7 +191,7 @@ export default function Home() {
     : 0;
   const todayMeals = nutrition?.plan.days.find((d) => d.weekday === weekday)?.meals ?? [];
   const waterGoal = 2000;
-  const date = now.toLocaleDateString(language === 'ro' ? 'ro-RO' : 'en-GB', {
+  const date = now.toLocaleDateString(localeOf(language), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
@@ -220,7 +222,7 @@ export default function Home() {
           <CalorieRing
             consumed={consumed.kcal}
             target={plan.targetCalories}
-            label={`kcal ${t('home.remaining')}`}
+            label={`${t('common.kcal')} ${t('home.remaining')}`}
             color="#FFFFFF"
             trackColor="rgba(255,255,255,0.25)"
             textColor="#FFFFFF"
@@ -253,18 +255,21 @@ export default function Home() {
 
         <Card title={t('home.macros')} icon="pie-chart">
           <MacroBar
+            unit={t('common.g')}
             label={t('onboarding.summary.protein')}
             value={consumed.proteinG}
             target={plan.macros.proteinG}
             color={theme.colors.protein}
           />
           <MacroBar
+            unit={t('common.g')}
             label={t('onboarding.summary.carbs')}
             value={consumed.carbsG}
             target={plan.macros.carbsG}
             color={theme.colors.carbs}
           />
           <MacroBar
+            unit={t('common.g')}
             label={t('onboarding.summary.fat')}
             value={consumed.fatG}
             target={plan.macros.fatG}
@@ -317,9 +322,13 @@ export default function Home() {
                   />
                   <View style={{ flex: 1 }}>
                     <Text style={theme.font.caption}>{t(`nutrition.slots.${m.slot}`)}</Text>
-                    <Text style={theme.font.body}>{recipe?.name[language]}</Text>
+                    <Text style={theme.font.body}>
+                      {recipe ? recipeName(recipe, language) : ''}
+                    </Text>
                   </View>
-                  <Text style={theme.font.caption}>{m.nutrients.kcal} kcal</Text>
+                  <Text style={theme.font.caption}>
+                    {m.nutrients.kcal} {t('common.kcal')}
+                  </Text>
                 </Pressable>
               );
             })
