@@ -21,7 +21,14 @@ export function CalorieRing({ consumed, target, remainingLabel, size = 200 }: Pr
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={colors.primarySoft} strokeWidth={stroke} fill="none" />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          stroke={colors.primarySoft}
+          strokeWidth={stroke}
+          fill="none"
+        />
         <Circle
           cx={size / 2}
           cy={size / 2}
@@ -44,6 +51,14 @@ export function CalorieRing({ consumed, target, remainingLabel, size = 200 }: Pr
 }
 
 const styles = StyleSheet.create({
-  center: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
+  center: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   value: { fontSize: 36, fontWeight: '700', color: colors.text },
 });
