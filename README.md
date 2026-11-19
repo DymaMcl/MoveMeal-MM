@@ -75,7 +75,17 @@ npm run typecheck                                            # verificarea tipur
 - [x] Biblioteca de exerciții (50 de exerciții, pe grupe musculare și dificultate)
 - [x] Rulare pe iPhone prin Expo Go
 - [ ] Animații proprii pentru exerciții (acum: alternarea pozițiilor de start și final)
-- [ ] Planul alimentar și rețetele
-- [ ] Jurnalul alimentar și recunoașterea alimentelor din fotografie
+- [x] Planul alimentar pe 7 zile: dietă, cei 14 alergeni, alimente excluse și preferate, buget, 3–5 mese;
+      porții 0,5–2, totalul zilei în ±5% față de țintă, proteine între 90% din țintă și 2,0 g/kg
+- [x] Rețete cu valori, alergeni și diete calculate din ingrediente; înlocuirea ingredientelor
+- [x] Alternative pentru o masă, regenerarea unei zile sau a săptămânii, lista de cumpărături
+- [x] Jurnalul alimentar: căutare (recente primele), grame sau bucăți, „Mâncat” din plan, ultimele 14 zile
+- [x] Greutatea și apa; pagina „Progres” cu media pe 7 zile (4, 8, 12 săptămâni)
+- [x] Ajustarea automată a țintei calorice (minimum 6 cântăriri, jurnal în 10 din 14 zile, ±5%)
+- [ ] Recunoașterea alimentelor din fotografie (AI)
+- [ ] Înregistrarea seriilor (greutate, repetări), cronometrul de pauză și recordurile personale
 - [ ] Nutriționist și programări
-- [ ] Blog, asistent virtual, panourile de administrare
+- [ ] Blog și asistentul virtual
+- [ ] Notificări și raportul săptămânal
+- [ ] Panourile de administrare și al nutriționistului (site web separat)
+- [ ] Catalogul complet: 150 de exerciții, 200 de rețete, import din Open Food Facts
