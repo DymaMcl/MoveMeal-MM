@@ -11,6 +11,7 @@ import { useI18n } from '@/i18n';
 import { currentWeek, isoDate, weekdayOf } from '@/state/dates';
 import { isDone, useWorkout } from '@/state/workout-state';
 import { useStyles, useTheme } from '@/theme';
+import { MenuButton } from '@/components/app-menu';
 
 export default function Workout() {
   const { t } = useI18n();
@@ -112,6 +113,7 @@ export default function Workout() {
           <Ionicons name="options-outline" size={20} color={theme.colors.primary} />
         </Pressable>
       ) : null}
+      <MenuButton />
     </View>
   );
 

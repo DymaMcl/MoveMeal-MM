@@ -15,6 +15,7 @@ import { useAppState } from '@/state/app-state';
 import { isoDate } from '@/state/dates';
 import { sumEntries, useNutrition } from '@/state/nutrition-state';
 import { useStyles, useTheme } from '@/theme';
+import { MenuButton } from '@/components/app-menu';
 
 /** Denumirea din catalog in limba aleasa; textul salvat pe server ramane rezerva. */
 function entryName(e: FoodLogEntry, language: 'ro' | 'en' | 'ru'): string {
@@ -144,6 +145,7 @@ export default function Calories() {
       <ScrollView contentContainerStyle={s.content}>
         <View style={s.header}>
           <Text style={s.title}>{t('journal.title')}</Text>
+          <MenuButton />
         </View>
 
         <View style={s.dayNav}>

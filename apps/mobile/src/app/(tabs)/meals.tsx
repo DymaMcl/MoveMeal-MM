@@ -12,6 +12,7 @@ import { useI18n } from '@/i18n';
 import { currentWeek, isoDate, weekdayOf } from '@/state/dates';
 import { SLOT_TO_LOG, useNutrition } from '@/state/nutrition-state';
 import { useStyles, useTheme } from '@/theme';
+import { MenuButton } from '@/components/app-menu';
 
 function portionsLabel(t: (k: string, p?: Record<string, string | number>) => string, n: number) {
   return n === 1
@@ -54,6 +55,7 @@ export default function Meals() {
     totalLabel: { color: 'rgba(255,255,255,0.85)', fontWeight: '700' },
     totalValue: { color: '#FFFFFF', fontSize: 32, fontWeight: '900' },
     totalMacros: { color: 'rgba(255,255,255,0.9)', fontWeight: '600' },
+    adjusted: { color: '#FFFFFF', fontWeight: '800', fontSize: 13 },
     meal: {
       backgroundColor: th.colors.surface,
       borderRadius: th.radius.lg,
@@ -115,6 +117,7 @@ export default function Meals() {
           </Pressable>
         </>
       ) : null}
+      <MenuButton />
     </View>
   );
 
@@ -217,6 +220,9 @@ export default function Meals() {
               <Text style={s.totalValue}>
                 {day.totals.kcal} {t('common.kcal')}
               </Text>
+              {program.adjustedByNutritionistAt ? (
+                <Text style={s.adjusted}>✓ {t('consult.adjustedBadge')}</Text>
+              ) : null}
               <Text style={s.totalMacros}>
                 {t('nutrition.target', { kcal: program.plan.targetKcal })} ·{' '}
                 {t('common.proteinShort')} {Math.round(day.totals.protein)} {t('common.g')} ·{' '}

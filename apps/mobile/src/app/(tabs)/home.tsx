@@ -7,12 +7,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalorieRing } from '@/components/calorie-ring';
 import { Card, IconCircle, Notice, type IconName } from '@/components/ui';
 import { localeOf, useI18n } from '@/i18n';
-import { api, type ProgressResponse } from '@/api/client';
+import { api, type Appointment, type ProgressResponse } from '@/api/client';
 import { useAppState } from '@/state/app-state';
-import { isoDate, weekdayOf } from '@/state/dates';
+import { formatDay, isoDate, weekdayOf } from '@/state/dates';
 import { SLOT_TO_LOG, sumEntries, useNutrition } from '@/state/nutrition-state';
 import { isDone, useWorkout } from '@/state/workout-state';
 import { useStyles, useTheme } from '@/theme';
+import { MenuButton } from '@/components/app-menu';
 
 function greetingKey(hour: number) {
   if (hour >= 5 && hour < 12) return 'home.morning';
@@ -101,10 +102,11 @@ function StatTile({
 export default function Home() {
   const { t, language } = useI18n();
   const theme = useTheme();
-  const { profile, plan, session } = useAppState();
+  const { profile, plan, session, targetSource } = useAppState();
   const { program: nutrition, log, waterToday, addWater } = useNutrition();
   const { program: workout, done } = useWorkout();
   const [progress, setProgress] = useState<ProgressResponse | null>(null);
+  const [nextConsultation, setNextConsultation] = useState<Appointment | null>(null);
 
   // Ajustarea propusa (daca exista) se reincarca la fiecare intoarcere pe pagina.
   useFocusEffect(
@@ -113,6 +115,16 @@ export default function Home() {
       api
         .progress(session.token)
         .then(setProgress)
+        .catch(() => undefined);
+      api
+        .appointments(session.token)
+        .then((list) =>
+          setNextConsultation(
+            list
+              .filter((a) => !a.past && (a.status === 'confirmed' || a.status === 'requested'))
+              .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null,
+          ),
+        )
         .catch(() => undefined);
     }, [session]),
   );
@@ -205,11 +217,7 @@ export default function Home() {
             <Text style={s.date}>{date}</Text>
             <Text style={s.greeting}>{t(greetingKey(now.getHours()), { name: profile.name })}</Text>
           </View>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/more')}>
-            <LinearGradient colors={theme.gradients.warm} style={s.avatar}>
-              <Text style={s.avatarText}>{profile.name.charAt(0).toUpperCase()}</Text>
-            </LinearGradient>
-          </Pressable>
+          <MenuButton />
         </View>
 
         <LinearGradient
@@ -240,6 +248,30 @@ export default function Home() {
             </View>
           </View>
         </LinearGradient>
+
+        {targetSource.adjustedBy === 'nutritionist' ? (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/nutritionist')}>
+            <Card title={t('consult.adjustedHome')} icon="medkit-outline">
+              {targetSource.nutritionistNote ? (
+                <Text style={theme.font.body}>{targetSource.nutritionistNote}</Text>
+              ) : null}
+            </Card>
+          </Pressable>
+        ) : null}
+
+        {nextConsultation ? (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/nutritionist')}>
+            <Card title={t('consult.nextConsultation')} icon="calendar-outline">
+              <Text style={theme.font.body}>
+                {t('consult.when', {
+                  day: formatDay(nextConsultation.day, localeOf(language), true),
+                  time: nextConsultation.time,
+                })}{' '}
+                · {t(`consult.status.${nextConsultation.status}`)}
+              </Text>
+            </Card>
+          </Pressable>
+        ) : null}
 
         {progress?.analysis.status === 'adjust' ? (
           <Pressable accessibilityRole="button" onPress={() => router.push('/progress')}>

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { MenuButton } from '@/components/app-menu';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
@@ -136,6 +137,7 @@ export default function Progress() {
             <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
           </Pressable>
           <Text style={s.title}>{t('progress.title')}</Text>
+          <MenuButton />
         </View>
 
         {error ? <Notice>{error}</Notice> : null}
