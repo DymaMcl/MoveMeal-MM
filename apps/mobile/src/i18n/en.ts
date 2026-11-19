@@ -77,8 +77,8 @@ export const en: Dictionary = {
       weeks: 'In how many weeks?',
       rate: 'Pace: {rate} kg per week',
       tooFast:
-        'This timeframe is not recommended: it means {rate} kg per week. A healthy pace is at most {max} kg per week, so at least {weeks} weeks.',
-      useSuggested: 'Use {weeks} weeks',
+        'This timeframe is not recommended: it means {rate} kg per week. A healthy pace is at most {max} kg per week, so at least {weeks}.',
+      useSuggested: 'Use {weeks}',
       wrongDirectionLose: 'To lose weight, the target must be lower than your current weight.',
       wrongDirectionGain: 'To gain weight, the target must be higher than your current weight.',
       unhealthy:

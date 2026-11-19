@@ -22,10 +22,31 @@ function interpolate(text: string, params?: Params): string {
   );
 }
 
+/** Numar cu cel mult `digits` zecimale; in romana separatorul zecimal este virgula. */
+export function formatNumber(value: number, language: Language, digits = 2): string {
+  const factor = 10 ** digits;
+  const text = String(Math.round(value * factor) / factor);
+  return language === 'ro' ? text.replace('.', ',') : text;
+}
+
+/**
+ * „1 săptămână”, „5 săptămâni”, „23 de săptămâni”.
+ * In romana, dupa numerele care se termina in 00 sau 20–99 se adauga „de”.
+ */
+export function formatWeeks(n: number, language: Language): string {
+  if (language === 'en') return n === 1 ? '1 week' : `${n} weeks`;
+  if (n === 1) return 'o săptămână';
+  const lastTwo = n % 100;
+  const withDe = lastTwo === 0 || lastTwo >= 20;
+  return `${n} ${withDe ? 'de ' : ''}săptămâni`;
+}
+
 interface I18nValue {
   language: Language;
   setLanguage: (language: Language) => void;
   t: (key: string, params?: Params) => string;
+  formatNumber: (value: number, digits?: number) => string;
+  formatWeeks: (n: number) => string;
 }
 
 const I18nContext = createContext<I18nValue | null>(null);
@@ -36,7 +57,16 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     (key: string, params?: Params) => interpolate(lookup(dictionaries[language], key), params),
     [language],
   );
-  const value = useMemo(() => ({ language, setLanguage, t }), [language, t]);
+  const value = useMemo<I18nValue>(
+    () => ({
+      language,
+      setLanguage,
+      t,
+      formatNumber: (n, digits) => formatNumber(n, language, digits),
+      formatWeeks: (n) => formatWeeks(n, language),
+    }),
+    [language, t],
+  );
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 

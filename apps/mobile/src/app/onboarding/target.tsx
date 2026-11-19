@@ -8,10 +8,8 @@ import { useAppState } from '@/state/app-state';
 import { font } from '@/theme';
 import { needsTarget, onboardingSteps } from '@/state/onboarding-steps';
 
-const fmt = (n: number) => (Math.round(n * 100) / 100).toString();
-
 export default function TargetStep() {
-  const { t } = useI18n();
+  const { t, formatNumber: fmt, formatWeeks } = useI18n();
   const { draft, updateDraft } = useAppState();
   const [target, setTarget] = useState(draft.targetWeightKg?.toString() ?? '');
   const [weeks, setWeeks] = useState(draft.weeks?.toString() ?? '');
@@ -80,12 +78,14 @@ export default function TargetStep() {
               {t('onboarding.target.tooFast', {
                 rate: fmt(check.weeklyRateKg),
                 max: fmt(check.maxWeeklyRateKg),
-                weeks: check.recommendedWeeks,
+                weeks: formatWeeks(check.recommendedWeeks),
               })}
             </Notice>
             <Button
               variant="secondary"
-              title={t('onboarding.target.useSuggested', { weeks: check.recommendedWeeks })}
+              title={t('onboarding.target.useSuggested', {
+                weeks: formatWeeks(check.recommendedWeeks),
+              })}
               onPress={() => setWeeks(String(check.recommendedWeeks))}
             />
           </>

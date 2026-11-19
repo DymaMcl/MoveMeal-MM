@@ -76,8 +76,8 @@ export const ro = {
       weeks: 'În câte săptămâni?',
       rate: 'Ritm: {rate} kg pe săptămână',
       tooFast:
-        'Acest termen nu este recomandat: ar însemna {rate} kg pe săptămână. Un ritm sănătos este de cel mult {max} kg pe săptămână, adică cel puțin {weeks} săptămâni.',
-      useSuggested: 'Folosește {weeks} săptămâni',
+        'Acest termen nu este recomandat: ar însemna {rate} kg pe săptămână. Un ritm sănătos este de cel mult {max} kg pe săptămână, adică cel puțin {weeks}.',
+      useSuggested: 'Folosește {weeks}',
       wrongDirectionLose:
         'Pentru slăbire, greutatea dorită trebuie să fie mai mică decât cea actuală.',
       wrongDirectionGain:

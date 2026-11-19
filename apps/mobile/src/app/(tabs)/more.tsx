@@ -16,7 +16,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default function More() {
-  const { t, language, setLanguage } = useI18n();
+  const { t, language, setLanguage, formatWeeks } = useI18n();
   const { profile, session, signOut, resetProfile } = useAppState();
   if (!profile) return null;
 
@@ -41,7 +41,7 @@ export default function More() {
           {profile.targetWeightKg !== undefined ? (
             <Row
               label={t('onboarding.target.title')}
-              value={`${profile.targetWeightKg} ${t('common.kg')} · ${profile.weeks} ${t('common.weeks')}`}
+              value={`${profile.targetWeightKg} ${t('common.kg')} · ${formatWeeks(profile.weeks ?? 0)}`}
             />
           ) : null}
           <Row
