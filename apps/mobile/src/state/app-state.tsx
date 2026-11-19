@@ -139,7 +139,18 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       resetProfile,
     }),
-    [ready, session, profile, plan, draft, signIn, signOut, updateDraft, completeOnboarding, resetProfile],
+    [
+      ready,
+      session,
+      profile,
+      plan,
+      draft,
+      signIn,
+      signOut,
+      updateDraft,
+      completeOnboarding,
+      resetProfile,
+    ],
   );
 
   return <AppStateContext.Provider value={value}>{children}</AppStateContext.Provider>;

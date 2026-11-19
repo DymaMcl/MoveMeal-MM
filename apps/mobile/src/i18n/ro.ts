@@ -28,7 +28,8 @@ export const ro = {
     registerAction: 'Creează contul',
     noAccount: 'Nu ai cont? Înregistrează-te',
     haveAccount: 'Ai deja cont? Autentifică-te',
-    consent: 'Sunt de acord cu prelucrarea datelor despre sănătate în scopul personalizării planului.',
+    consent:
+      'Sunt de acord cu prelucrarea datelor despre sănătate în scopul personalizării planului.',
     errors: {
       email: 'Introdu o adresă de e-mail validă.',
       password: 'Parola trebuie să aibă cel puțin 8 caractere.',

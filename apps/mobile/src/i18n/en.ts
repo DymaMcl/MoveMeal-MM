@@ -51,7 +51,8 @@ export const en: Dictionary = {
     },
     start: {
       title: 'Let us get started, {name}!',
-      subtitle: 'In a few steps we will set your goal and calculate how many calories you need daily.',
+      subtitle:
+        'In a few steps we will set your goal and calculate how many calories you need daily.',
       action: 'Let us start!',
     },
     body: {

@@ -37,7 +37,15 @@ export function Subtitle({ children }: { children: ReactNode }) {
   return <Text style={[font.body, styles.subtitle]}>{children}</Text>;
 }
 
-export function StepIndicator({ label, current, total }: { label: string; current: number; total: number }) {
+export function StepIndicator({
+  label,
+  current,
+  total,
+}: {
+  label: string;
+  current: number;
+  total: number;
+}) {
   return (
     <View style={styles.step}>
       <Text style={font.caption}>{label}</Text>
@@ -134,10 +142,18 @@ export function Card({ children, title }: { children: ReactNode; title?: string 
   );
 }
 
-export function Notice({ children, tone = 'warning' }: { children: ReactNode; tone?: 'warning' | 'info' }) {
+export function Notice({
+  children,
+  tone = 'warning',
+}: {
+  children: ReactNode;
+  tone?: 'warning' | 'info';
+}) {
   return (
     <View style={[styles.notice, tone === 'info' && styles.noticeInfo]}>
-      <Text style={[font.caption, { color: tone === 'warning' ? colors.warning : colors.primaryDark }]}>
+      <Text
+        style={[font.caption, { color: tone === 'warning' ? colors.warning : colors.primaryDark }]}
+      >
         {children}
       </Text>
     </View>
