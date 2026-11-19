@@ -1,8 +1,10 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ToastProvider } from '@/components/toast';
 import { I18nProvider } from '@/i18n';
 import { AppStateProvider } from '@/state/app-state';
+import { NutritionProvider } from '@/state/nutrition-state';
 import { WorkoutProvider } from '@/state/workout-state';
 import { ThemeProvider, useTheme } from '@/theme';
 
@@ -28,7 +30,11 @@ export default function RootLayout() {
         <I18nProvider>
           <AppStateProvider>
             <WorkoutProvider>
-              <ThemedStack />
+              <NutritionProvider>
+                <ToastProvider>
+                  <ThemedStack />
+                </ToastProvider>
+              </NutritionProvider>
             </WorkoutProvider>
           </AppStateProvider>
         </I18nProvider>

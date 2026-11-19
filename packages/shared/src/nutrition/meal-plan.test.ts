@@ -240,3 +240,20 @@ describe('modificarea planului', () => {
     expect(listed).toBeGreaterThanOrEqual(oats);
   });
 });
+
+describe('substituteFoods', () => {
+  it('propune inlocuitori din aceeasi categorie, compatibili cu dieta', async () => {
+    const { substituteFoods } = await import('./catalog.ts');
+    const subs = substituteFoods('chicken_breast', 150, {
+      diet: 'omnivore',
+      allergens: [],
+      excludedFoods: [],
+    });
+    expect(subs.length).toBe(3);
+    for (const s of subs) expect(getFood(s.foodId)!.category).toBe('meat_fish');
+    expect(subs.map((s) => s.foodId)).toContain('turkey_breast');
+
+    const vegan = substituteFoods('milk', 200, { diet: 'vegan', allergens: [], excludedFoods: [] });
+    expect(vegan.every((s) => getFood(s.foodId)!.origin === 'plant')).toBe(true);
+  });
+});

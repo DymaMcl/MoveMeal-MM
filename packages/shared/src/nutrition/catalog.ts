@@ -117,4 +117,49 @@ export function getRecipe(id: string): Recipe | undefined {
   return RECIPE_BY_ID.get(id);
 }
 
+export interface FoodSubstitute {
+  foodId: string;
+  /** Cantitatea care pastreaza aproximativ aceleasi calorii. */
+  grams: number;
+}
+
+/**
+ * Inlocuitori pentru un ingredient: alimente din aceeasi categorie, compatibile cu dieta
+ * si restrictiile utilizatorului, cu valori nutritionale cat mai apropiate.
+ */
+export function substituteFoods(
+  foodId: string,
+  grams: number,
+  prefs: Pick<NutritionPreferences, 'diet' | 'allergens' | 'excludedFoods'>,
+  count = 3,
+): FoodSubstitute[] {
+  const original = getFood(foodId);
+  if (!original) return [];
+  const share = (f: Food) => {
+    const total = Math.max(f.kcal, 1);
+    return { p: (f.protein * 4) / total, c: (f.carbs * 4) / total, f: (f.fat * 9) / total };
+  };
+  const o = share(original);
+  return FOODS.filter(
+    (f) =>
+      f.id !== foodId &&
+      f.category === original.category &&
+      DIET_ALLOWS[prefs.diet].includes(f.origin) &&
+      !f.allergens.some((a) => prefs.allergens.includes(a)) &&
+      !prefs.excludedFoods.includes(f.id),
+  )
+    .map((f) => {
+      const x = share(f);
+      // Distanta dintre profilurile de macronutrienti (proportia caloriilor din fiecare).
+      const distance = Math.abs(x.p - o.p) + Math.abs(x.c - o.c) + Math.abs(x.f - o.f);
+      return { f, distance };
+    })
+    .sort((a, b) => a.distance - b.distance)
+    .slice(0, count)
+    .map(({ f }) => ({
+      foodId: f.id,
+      grams: Math.max(5, Math.round((grams * original.kcal) / Math.max(f.kcal, 1) / 5) * 5),
+    }));
+}
+
 export { FOODS, RECIPES };

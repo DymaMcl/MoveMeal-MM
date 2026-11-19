@@ -46,6 +46,7 @@ interface AppStateValue {
   updateDraft: (patch: ProfileDraft) => void;
   completeOnboarding: () => Promise<void>;
   resetProfile: () => void;
+  refreshProfile: () => Promise<void>;
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -85,6 +86,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [draft, setDraft] = useState<ProfileDraft>({});
+  /** Planul caloric primit de la server (include o eventuala ajustare acceptata). */
+  const [serverPlan, setServerPlan] = useState<EnergyPlan | null>(null);
 
   const clearLocal = useCallback(async () => {
     await Promise.all([
@@ -94,6 +97,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     ]);
     setSession(null);
     setProfile(null);
+    setServerPlan(null);
     setDraft({});
   }, []);
 
@@ -113,9 +117,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
       if (!token) return;
       try {
-        const { profile: remote } = await api.getProfile(token);
-        setProfile(remote);
-        await writeProfileCache(remote);
+        const remote = await api.getProfile(token);
+        setProfile(remote.profile);
+        setServerPlan(remote.plan);
+        await writeProfileCache(remote.profile);
       } catch (error) {
         if (error instanceof ApiError && error.status === 401) await clearLocal();
         else if (error instanceof ApiError && error.status === 404) {
@@ -134,9 +139,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     ]);
     setSession({ token, email });
     try {
-      const { profile: remote } = await api.getProfile(token);
-      setProfile(remote);
-      await writeProfileCache(remote);
+      const remote = await api.getProfile(token);
+      setProfile(remote.profile);
+      setServerPlan(remote.plan);
+      await writeProfileCache(remote.profile);
     } catch {
       setProfile(null);
     }
@@ -175,18 +181,33 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       delete payload.targetWeightKg;
       delete payload.weeks;
     }
-    const { profile: saved } = await api.saveProfile(session.token, payload);
-    await writeProfileCache(saved);
-    setProfile(saved);
+    const saved = await api.saveProfile(session.token, payload);
+    await writeProfileCache(saved.profile);
+    setProfile(saved.profile);
+    setServerPlan(saved.plan);
   }, [draft, session]);
 
   /** Porneste din nou chestionarul, cu valorile actuale precompletate. */
   const resetProfile = useCallback(() => {
     setDraft(profile ?? {});
     setProfile(null);
+    setServerPlan(null);
   }, [profile]);
 
-  const plan = useMemo(() => (profile ? calculateEnergyPlan(profile) : null), [profile]);
+  /** Reincarca profilul si tinta de pe server (de exemplu dupa acceptarea unei ajustari). */
+  const refreshProfile = useCallback(async () => {
+    if (!session) return;
+    const remote = await api.getProfile(session.token);
+    setProfile(remote.profile);
+    setServerPlan(remote.plan);
+    await writeProfileCache(remote.profile);
+  }, [session]);
+
+  // Fara conexiune se foloseste calculul local, cu aceleasi formule ca serverul.
+  const plan = useMemo(
+    () => serverPlan ?? (profile ? calculateEnergyPlan(profile) : null),
+    [serverPlan, profile],
+  );
 
   const value = useMemo<AppStateValue>(
     () => ({
@@ -201,6 +222,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateDraft,
       completeOnboarding,
       resetProfile,
+      refreshProfile,
     }),
     [
       ready,
@@ -214,6 +236,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateDraft,
       completeOnboarding,
       resetProfile,
+      refreshProfile,
     ],
   );
 
