@@ -11,6 +11,7 @@
     "mobile": "npm run start --workspace=@movemeal/mobile",
     "api": "npm run start:dev --workspace=@movemeal/api",
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev": "node scripts/dev.mjs"
   }
 }
