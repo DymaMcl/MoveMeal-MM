@@ -163,7 +163,10 @@ export default function Home() {
       justifyContent: 'center',
       backgroundColor: th.colors.infoSoft,
     },
-    waterButtonText: { color: th.colors.info, fontWeight: '800' },
+    waterButtonText: { color: th.colors.info, fontWeight: '800', textAlign: 'center' },
+    waterButtons: { flexDirection: 'row', gap: th.spacing.sm },
+    waterButtonMinus: { flex: 1, backgroundColor: th.colors.surfaceAlt },
+    waterButtonMinusText: { color: th.colors.textMuted },
     progressRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   }));
 
@@ -343,11 +346,23 @@ export default function Home() {
                 />
               </View>
             </View>
+          </View>
+          <View style={s.waterButtons}>
+            {/* −250 ml corecteaza o apasare din greseala; valoarea nu coboara sub 0. */}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('water.remove')}
+              disabled={waterToday === 0}
+              onPress={() => addWater(-250)}
+              style={[s.waterButton, s.waterButtonMinus, waterToday === 0 && { opacity: 0.4 }]}
+            >
+              <Text style={[s.waterButtonText, s.waterButtonMinusText]}>{t('water.remove')}</Text>
+            </Pressable>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('water.add')}
               onPress={() => addWater(250)}
-              style={s.waterButton}
+              style={[s.waterButton, { flex: 1 }]}
             >
               <Text style={s.waterButtonText}>{t('water.add')}</Text>
             </Pressable>

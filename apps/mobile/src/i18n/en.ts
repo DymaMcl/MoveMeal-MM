@@ -462,5 +462,6 @@ export const en: Dictionary = {
     title: 'Water',
     goal: 'of {goal} ml',
     add: '+250 ml',
+    remove: '−250 ml',
   },
 };

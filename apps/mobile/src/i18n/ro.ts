@@ -467,6 +467,7 @@ export const ro = {
     title: 'Apă',
     goal: 'din {goal} ml',
     add: '+250 ml',
+    remove: '−250 ml',
   },
 };
 
