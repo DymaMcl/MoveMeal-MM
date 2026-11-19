@@ -1,20 +1,44 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Button, Field, Screen, Title } from '@/components/ui';
+import { Pressable, Text, View } from 'react-native';
+import { Button, Field, Screen, Subtitle, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { isValidEmail, MIN_PASSWORD_LENGTH } from '@/state/validation';
-import { colors, font, spacing } from '@/theme';
+import { useStyles, useTheme } from '@/theme';
 
 export default function Register() {
   const { t } = useI18n();
+  const theme = useTheme();
   const { signIn } = useAppState();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [consent, setConsent] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const s = useStyles((th) => ({
+    consent: {
+      flexDirection: 'row',
+      gap: th.spacing.sm + 4,
+      alignItems: 'flex-start',
+      backgroundColor: th.colors.surface,
+      borderRadius: th.radius.md,
+      padding: th.spacing.md,
+    },
+    box: {
+      width: 24,
+      height: 24,
+      borderRadius: 8,
+      borderWidth: 2,
+      borderColor: th.colors.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    boxChecked: { backgroundColor: th.colors.primary, borderColor: th.colors.primary },
+    consentText: { ...th.font.caption, flex: 1, color: th.colors.text },
+    error: { fontSize: 13, color: th.colors.danger },
+  }));
 
   const errors = {
     email: !isValidEmail(email) ? t('auth.errors.email') : null,
@@ -47,6 +71,7 @@ export default function Register() {
       }
     >
       <Title>{t('auth.registerTitle')}</Title>
+      <Subtitle>MoveMeal</Subtitle>
       <Field
         label={t('auth.email')}
         value={email}
@@ -54,6 +79,7 @@ export default function Register() {
         autoCapitalize="none"
         autoComplete="email"
         keyboardType="email-address"
+        icon="mail-outline"
         error={show(errors.email)}
       />
       <Field
@@ -62,6 +88,7 @@ export default function Register() {
         onChangeText={setPassword}
         secureTextEntry
         autoComplete="new-password"
+        icon="lock-closed-outline"
         error={show(errors.password)}
       />
       <Field
@@ -69,37 +96,21 @@ export default function Register() {
         value={confirm}
         onChangeText={setConfirm}
         secureTextEntry
+        icon="lock-closed-outline"
         error={show(errors.confirm)}
       />
       <Pressable
         accessibilityRole="checkbox"
         accessibilityState={{ checked: consent }}
         onPress={() => setConsent((c) => !c)}
-        style={styles.consent}
+        style={s.consent}
       >
-        <View style={[styles.box, consent && styles.boxChecked]}>
-          {consent ? <Text style={styles.tick}>✓</Text> : null}
+        <View style={[s.box, consent && s.boxChecked]}>
+          {consent ? <Ionicons name="checkmark" size={16} color={theme.colors.onPrimary} /> : null}
         </View>
-        <Text style={[font.caption, styles.flex]}>{t('auth.consent')}</Text>
+        <Text style={s.consentText}>{t('auth.consent')}</Text>
       </Pressable>
-      {show(errors.consent) ? <Text style={styles.error}>{errors.consent}</Text> : null}
+      {show(errors.consent) ? <Text style={s.error}>{errors.consent}</Text> : null}
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  consent: { flexDirection: 'row', gap: spacing.sm, alignItems: 'flex-start' },
-  box: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  boxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tick: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  error: { fontSize: 13, color: colors.danger },
-});

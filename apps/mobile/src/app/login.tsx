@@ -45,6 +45,7 @@ export default function Login() {
         onChangeText={setEmail}
         autoCapitalize="none"
         autoComplete="email"
+        icon="mail-outline"
         keyboardType="email-address"
         error={emailError}
       />
@@ -54,6 +55,7 @@ export default function Login() {
         onChangeText={setPassword}
         secureTextEntry
         autoComplete="password"
+        icon="lock-closed-outline"
         error={passwordError}
       />
     </Screen>

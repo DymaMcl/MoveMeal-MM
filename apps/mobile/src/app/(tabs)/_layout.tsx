@@ -1,23 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Redirect } from 'expo-router';
 import { Tabs } from 'expo-router/tabs';
-import type { ComponentProps } from 'react';
+import type { IconName } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
-type IconName = ComponentProps<typeof Ionicons>['name'];
-
-const TABS: { name: string; label: string; icon: IconName }[] = [
-  { name: 'home', label: 'tabs.home', icon: 'home-outline' },
-  { name: 'workout', label: 'tabs.workout', icon: 'barbell-outline' },
-  { name: 'meals', label: 'tabs.meals', icon: 'restaurant-outline' },
-  { name: 'calories', label: 'tabs.calories', icon: 'camera-outline' },
-  { name: 'more', label: 'tabs.more', icon: 'menu-outline' },
+const TABS: { name: string; label: string; icon: IconName; iconActive: IconName }[] = [
+  { name: 'home', label: 'tabs.home', icon: 'home-outline', iconActive: 'home' },
+  { name: 'workout', label: 'tabs.workout', icon: 'barbell-outline', iconActive: 'barbell' },
+  { name: 'meals', label: 'tabs.meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
+  { name: 'calories', label: 'tabs.calories', icon: 'camera-outline', iconActive: 'camera' },
+  { name: 'more', label: 'tabs.more', icon: 'grid-outline', iconActive: 'grid' },
 ];
 
 export default function TabsLayout() {
   const { t } = useI18n();
+  const theme = useTheme();
   const { ready, session, profile } = useAppState();
 
   if (ready && !session) return <Redirect href="/welcome" />;
@@ -27,8 +26,14 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: theme.colors.primary,
+        tabBarInactiveTintColor: theme.colors.textMuted,
+        tabBarStyle: {
+          backgroundColor: theme.colors.tabBar,
+          borderTopColor: theme.colors.border,
+        },
+        tabBarLabelStyle: { fontWeight: '600', fontSize: 11 },
+        sceneStyle: { backgroundColor: theme.colors.background },
       }}
     >
       {TABS.map((tab) => (
@@ -37,8 +42,12 @@ export default function TabsLayout() {
           name={tab.name}
           options={{
             title: t(tab.label),
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name={tab.icon} color={color as string} size={size} />
+            tabBarIcon: ({ color, size, focused }) => (
+              <Ionicons
+                name={focused ? tab.iconActive : tab.icon}
+                color={color as string}
+                size={size}
+              />
             ),
           }}
         />

@@ -1,7 +1,7 @@
 import { isInRange, LIMITS, type Sex } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import {
   Button,
   Field,
@@ -14,8 +14,8 @@ import {
 } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
-import { font, spacing } from '@/theme';
 import { onboardingSteps } from '@/state/onboarding-steps';
+import { useStyles } from '@/theme';
 
 export default function PersonalStep() {
   const { t } = useI18n();
@@ -25,6 +25,11 @@ export default function PersonalStep() {
   const [sex, setSex] = useState<Sex | undefined>(draft.sex);
   const [submitted, setSubmitted] = useState(false);
   const steps = onboardingSteps(draft.goal);
+  const styles = useStyles((th) => ({
+    group: { gap: th.spacing.sm + 2 },
+    label: { ...th.font.body, fontWeight: '700' },
+    error: { fontSize: 13, color: th.colors.danger },
+  }));
 
   const ageValue = parseNumber(age);
   const errors = {
@@ -61,6 +66,7 @@ export default function PersonalStep() {
         value={name}
         onChangeText={setName}
         autoComplete="given-name"
+        icon="person-outline"
         error={show(errors.name)}
       />
       <Field
@@ -69,17 +75,20 @@ export default function PersonalStep() {
         onChangeText={setAge}
         keyboardType="number-pad"
         suffix={t('common.years')}
+        icon="calendar-outline"
         error={show(errors.age)}
       />
       <View style={styles.group}>
         <Text style={styles.label}>{t('onboarding.personal.sex')}</Text>
         <OptionCard
           title={t('onboarding.personal.male')}
+          icon="male"
           selected={sex === 'male'}
           onPress={() => setSex('male')}
         />
         <OptionCard
           title={t('onboarding.personal.female')}
+          icon="female"
           selected={sex === 'female'}
           onPress={() => setSex('female')}
         />
@@ -88,9 +97,3 @@ export default function PersonalStep() {
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  group: { gap: spacing.sm },
-  label: { ...font.body, fontWeight: '600' },
-  error: { fontSize: 13, color: '#D92D20' },
-});

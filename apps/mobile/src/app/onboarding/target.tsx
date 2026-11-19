@@ -5,11 +5,12 @@ import { Text } from 'react-native';
 import { Button, Field, Notice, parseNumber, Screen, StepIndicator, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
-import { font } from '@/theme';
+import { useTheme } from '@/theme';
 import { needsTarget, onboardingSteps } from '@/state/onboarding-steps';
 
 export default function TargetStep() {
   const { t, formatNumber: fmt, formatWeeks } = useI18n();
+  const theme = useTheme();
   const { draft, updateDraft } = useAppState();
   const [target, setTarget] = useState(draft.targetWeightKg?.toString() ?? '');
   const [weeks, setWeeks] = useState(draft.weeks?.toString() ?? '');
@@ -92,7 +93,7 @@ export default function TargetStep() {
         );
       case 'ok':
         return (
-          <Text style={font.caption}>
+          <Text style={theme.font.caption}>
             {t('onboarding.target.rate', { rate: fmt(check.weeklyRateKg) })}
           </Text>
         );
@@ -133,6 +134,7 @@ export default function TargetStep() {
         onChangeText={setTarget}
         keyboardType="decimal-pad"
         suffix={t('common.kg')}
+        icon="flag-outline"
         error={targetError}
       />
       <Field
@@ -141,6 +143,7 @@ export default function TargetStep() {
         onChangeText={setWeeks}
         keyboardType="number-pad"
         suffix={t('common.weeks')}
+        icon="time-outline"
         error={weeksError}
         hint={weeksHint()}
       />

@@ -1,12 +1,18 @@
 import type { Goal } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Button, OptionCard, Screen, StepIndicator, Title } from '@/components/ui';
+import { Button, OptionCard, Screen, StepIndicator, Title, type IconName } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { needsTarget, onboardingSteps } from '@/state/onboarding-steps';
 
 const GOALS: Goal[] = ['lose', 'gain', 'muscle', 'maintain'];
+const GOAL_ICONS: Record<Goal, IconName> = {
+  lose: 'trending-down',
+  gain: 'trending-up',
+  muscle: 'barbell',
+  maintain: 'pulse',
+};
 
 export default function GoalStep() {
   const { t } = useI18n();
@@ -40,6 +46,7 @@ export default function GoalStep() {
           key={g}
           title={t(`onboarding.goal.${g}`)}
           hint={t(`onboarding.goal.${g}Hint`)}
+          icon={GOAL_ICONS[g]}
           selected={goal === g}
           onPress={() => setGoal(g)}
         />

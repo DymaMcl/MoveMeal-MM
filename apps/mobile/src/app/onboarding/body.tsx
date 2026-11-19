@@ -56,6 +56,7 @@ export default function BodyStep() {
         onChangeText={setHeight}
         keyboardType="number-pad"
         suffix={t('common.cm')}
+        icon="resize-outline"
         error={submitted ? errors.height : null}
       />
       <Field
@@ -64,6 +65,7 @@ export default function BodyStep() {
         onChangeText={setWeight}
         keyboardType="decimal-pad"
         suffix={t('common.kg')}
+        icon="speedometer-outline"
         error={submitted ? errors.weight : null}
       />
     </Screen>

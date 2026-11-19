@@ -1,12 +1,27 @@
 import type { ActivityLevel } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Button, OptionCard, Screen, StepIndicator, Subtitle, Title } from '@/components/ui';
+import {
+  Button,
+  OptionCard,
+  Screen,
+  StepIndicator,
+  Subtitle,
+  Title,
+  type IconName,
+} from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { onboardingSteps } from '@/state/onboarding-steps';
 
 const LEVELS: ActivityLevel[] = ['sedentary', 'light', 'moderate', 'active', 'very_active'];
+const LEVEL_ICONS: Record<ActivityLevel, IconName> = {
+  sedentary: 'desktop-outline',
+  light: 'walk',
+  moderate: 'bicycle',
+  active: 'football',
+  very_active: 'flame',
+};
 
 export default function ActivityStep() {
   const { t } = useI18n();
@@ -41,6 +56,7 @@ export default function ActivityStep() {
           key={l}
           title={t(`onboarding.activity.${l}`)}
           hint={t(`onboarding.activity.${l}Hint`)}
+          icon={LEVEL_ICONS[l]}
           selected={level === l}
           onPress={() => setLevel(l)}
         />
