@@ -120,11 +120,15 @@ export type MealPlanIssue =
   /** Totalul unei zile nu a putut fi adus in ±5% fata de tinta. */
   | 'calories_out_of_range'
   /** Proteinele unei zile sunt sub 90% din tinta. */
-  | 'protein_below_target';
+  | 'protein_below_target'
+  /** Proteinele unei zile depasesc limita de siguranta (2,0 g/kg). */
+  | 'protein_above_limit';
 
 export interface MealPlan {
   targetKcal: number;
   targetProtein: number;
+  /** Limita superioara pentru proteine (g). */
+  targetProteinMax?: number;
   days: PlannedDay[];
   issues: MealPlanIssue[];
 }

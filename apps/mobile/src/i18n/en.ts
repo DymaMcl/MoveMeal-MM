@@ -320,6 +320,7 @@ export const en: Dictionary = {
       snack2: 'Snack',
     },
     issues: {
+      protein_above_limit: 'On some days protein exceeds the recommended limit of 2 g/kg.',
       calories_out_of_range: 'Some days could not be matched exactly to the calorie target.',
       protein_below_target:
         'Protein is below target on some days. Pick higher-protein alternatives or talk to the nutritionist.',

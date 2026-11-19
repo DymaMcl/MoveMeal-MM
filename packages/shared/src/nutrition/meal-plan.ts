@@ -67,7 +67,14 @@ const ATTEMPTS_PER_DAY = 150;
 export interface MealPlanTarget {
   kcal: number;
   protein: number;
+  /**
+   * Limita superioara pentru proteine, in grame (tabelul 1.2: cel mult 2,0 g/kg).
+   * Implicit: tinta × 1,4.
+   */
+  proteinMax?: number;
 }
+
+const DEFAULT_PROTEIN_MAX_FACTOR = 1.4;
 
 export type BlockingRestriction =
   | { kind: 'diet' }
@@ -225,9 +232,11 @@ function totalsOf(meals: PlannedMeal[]): Nutrients {
 function dayScore(totals: Nutrients, target: MealPlanTarget, preference: number): number {
   const calorieError = Math.abs(totals.kcal - target.kcal) / target.kcal;
   const proteinShortfall = Math.max(0, PROTEIN_MIN_SHARE - totals.protein / target.protein);
+  const proteinMax = target.proteinMax ?? target.protein * DEFAULT_PROTEIN_MAX_FACTOR;
+  const proteinExcess = Math.max(0, totals.protein / proteinMax - 1);
   const caloriePenalty =
     calorieError > CALORIE_TOLERANCE ? 10 + calorieError * 100 : calorieError * 10;
-  return caloriePenalty + proteinShortfall * 30 - preference * 0.3;
+  return caloriePenalty + proteinShortfall * 30 + proteinExcess * 30 - preference * 0.3;
 }
 
 function weightedPick(list: Recipe[], weight: (r: Recipe) => number, random: () => number): Recipe {
@@ -270,7 +279,7 @@ function planDay(
       chosen.push(
         weightedPick(
           options,
-          (r) => preferenceScore(r, prefs) * proteinDensity(r) ** 2 * 40,
+          (r) => preferenceScore(r, prefs) * (0.4 + proteinDensity(r) * 4),
           random,
         ),
       );
@@ -295,6 +304,8 @@ function issuesOf(days: PlannedDay[], target: MealPlanTarget): MealPlanIssue[] {
       issues.add('calories_out_of_range');
     }
     if (d.totals.protein < target.protein * PROTEIN_MIN_SHARE) issues.add('protein_below_target');
+    const max = target.proteinMax ?? target.protein * DEFAULT_PROTEIN_MAX_FACTOR;
+    if (d.totals.protein > max) issues.add('protein_above_limit');
   }
   return [...issues];
 }
@@ -327,6 +338,7 @@ export function generateMealPlan(
     plan: {
       targetKcal: Math.round(target.kcal),
       targetProtein: Math.round(target.protein),
+      ...(target.proteinMax ? { targetProteinMax: Math.round(target.proteinMax) } : {}),
       days,
       issues: issuesOf(days, target),
     },
@@ -340,7 +352,11 @@ export function regenerateDay(
   prefs: NutritionPreferences,
   salt: number,
 ): MealPlan {
-  const target = { kcal: plan.targetKcal, protein: plan.targetProtein };
+  const target = {
+    kcal: plan.targetKcal,
+    protein: plan.targetProtein,
+    proteinMax: plan.targetProteinMax,
+  };
   const uses = new Map<string, number>();
   for (const d of plan.days) {
     if (d.weekday === weekday) continue;
@@ -392,7 +408,11 @@ export function mealAlternatives(
 
 /** Inlocuieste o masa si recalculeaza totalurile zilei. */
 export function replaceMeal(plan: MealPlan, weekday: number, meal: PlannedMeal): MealPlan {
-  const target = { kcal: plan.targetKcal, protein: plan.targetProtein };
+  const target = {
+    kcal: plan.targetKcal,
+    protein: plan.targetProtein,
+    proteinMax: plan.targetProteinMax,
+  };
   const days = plan.days.map((d) => {
     if (d.weekday !== weekday) return d;
     const meals = d.meals.map((m) => (m.slot === meal.slot ? meal : m));

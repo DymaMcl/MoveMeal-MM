@@ -324,6 +324,7 @@ export const ro = {
       snack2: 'Gustare',
     },
     issues: {
+      protein_above_limit: 'În unele zile proteinele depășesc limita recomandată de 2 g/kg.',
       calories_out_of_range: 'Unele zile nu au putut fi aduse exact la ținta calorică.',
       protein_below_target:
         'În unele zile proteinele sunt sub țintă. Poți alege alternative mai bogate în proteine sau discuta cu nutriționistul.',

@@ -291,7 +291,12 @@ export class NutritionService {
     if (!current) throw new NotFoundException('Completeaza mai intai profilul.');
     const result = generateMealPlan(
       preferences,
-      { kcal: current.plan.targetCalories, protein: current.plan.macros.proteinG },
+      {
+        kcal: current.plan.targetCalories,
+        protein: current.plan.macros.proteinG,
+        // Tabelul 1.2: proteinele de cel mult 2,0 g/kg.
+        proteinMax: current.profile.weightKg * 2,
+      },
       salt,
     );
     if (!result.ok) {

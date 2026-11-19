@@ -120,6 +120,13 @@ export default function More() {
           />
         </Card>
 
+        <Button
+          title={t('progress.open')}
+          icon="stats-chart"
+          variant="secondary"
+          onPress={() => router.push('/progress')}
+        />
+
         <Card title={t('settings.title')} icon="settings">
           <View style={s.group}>
             <Text style={s.label}>{t('settings.theme')}</Text>

@@ -1,11 +1,17 @@
-import { router } from 'expo-router';
+import { getRecipe } from '@movemeal/shared';
+import { router, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalorieRing } from '@/components/calorie-ring';
 import { Card, IconCircle, Notice, type IconName } from '@/components/ui';
 import { useI18n } from '@/i18n';
+import { api, type ProgressResponse } from '@/api/client';
 import { useAppState } from '@/state/app-state';
+import { isoDate, weekdayOf } from '@/state/dates';
+import { SLOT_TO_LOG, sumEntries, useNutrition } from '@/state/nutrition-state';
+import { isDone, useWorkout } from '@/state/workout-state';
 import { useStyles, useTheme } from '@/theme';
 
 function greetingKey(hour: number) {
@@ -93,7 +99,21 @@ function StatTile({
 export default function Home() {
   const { t, language } = useI18n();
   const theme = useTheme();
-  const { profile, plan } = useAppState();
+  const { profile, plan, session } = useAppState();
+  const { program: nutrition, log, waterToday, addWater } = useNutrition();
+  const { program: workout, done } = useWorkout();
+  const [progress, setProgress] = useState<ProgressResponse | null>(null);
+
+  // Ajustarea propusa (daca exista) se reincarca la fiecare intoarcere pe pagina.
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) return;
+      api
+        .progress(session.token)
+        .then(setProgress)
+        .catch(() => undefined);
+    }, [session]),
+  );
   const s = useStyles((th) => ({
     safe: { flex: 1, backgroundColor: th.colors.background },
     content: { padding: th.spacing.lg, gap: th.spacing.md, paddingBottom: th.spacing.xl },
@@ -132,13 +152,40 @@ export default function Home() {
     },
     tipTitle: { color: '#FFFFFF', fontWeight: '800', fontSize: 16, marginBottom: 4 },
     tipText: { color: 'rgba(255,255,255,0.92)', fontSize: 15, lineHeight: 21 },
+    mealRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 4 },
+    waterRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    waterTrack: { height: 10, borderRadius: 5, backgroundColor: th.colors.surfaceAlt },
+    waterFill: { height: 10, borderRadius: 5, backgroundColor: th.colors.info },
+    waterButton: {
+      paddingHorizontal: 14,
+      height: 40,
+      borderRadius: 20,
+      justifyContent: 'center',
+      backgroundColor: th.colors.infoSoft,
+    },
+    waterButtonText: { color: th.colors.info, fontWeight: '800' },
+    progressRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   }));
 
   if (!profile || !plan) return null;
 
-  // Jurnalul alimentar va fi implementat in pagina „Calorii”; deocamdata nu exista inregistrari.
-  const consumed = { kcal: 0, proteinG: 0, carbsG: 0, fatG: 0 };
   const now = new Date();
+  const today = isoDate(now);
+  const todayEntries = log[today] ?? [];
+  const totals = sumEntries(todayEntries);
+  const consumed = {
+    kcal: Math.round(totals.kcal),
+    proteinG: Math.round(totals.protein),
+    carbsG: Math.round(totals.carbs),
+    fatG: Math.round(totals.fat),
+  };
+  const weekday = weekdayOf(now);
+  const todaySession = workout?.plan.sessions.find((x) => x.weekday === weekday);
+  const workoutDone = todaySession
+    ? todaySession.exercises.filter((p) => isDone(done, today, p.exerciseId)).length
+    : 0;
+  const todayMeals = nutrition?.plan.days.find((d) => d.weekday === weekday)?.meals ?? [];
+  const waterGoal = 2000;
   const date = now.toLocaleDateString(language === 'ro' ? 'ro-RO' : 'en-GB', {
     weekday: 'long',
     day: 'numeric',
@@ -189,6 +236,18 @@ export default function Home() {
           </View>
         </LinearGradient>
 
+        {progress?.analysis.status === 'adjust' ? (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/progress')}>
+            <Notice tone="info">
+              {t('progress.proposal', {
+                rate: String(progress.analysis.weeklyChangePct).replace('.', ','),
+                from: progress.analysis.currentTarget,
+                to: progress.analysis.proposedTarget,
+              })}
+            </Notice>
+          </Pressable>
+        ) : null}
+
         <Card title={t('home.macros')} icon="pie-chart">
           <MacroBar
             label={t('onboarding.summary.protein')}
@@ -209,6 +268,110 @@ export default function Home() {
             color={theme.colors.fat}
           />
         </Card>
+
+        <Card title={t('workout.title')} icon="barbell">
+          <Pressable accessibilityRole="button" onPress={() => router.push('/workout')}>
+            {todaySession ? (
+              <>
+                <Text style={theme.font.heading}>
+                  {t(`workout.templates.${todaySession.template}`)}
+                </Text>
+                <Text style={theme.font.caption}>
+                  {t('workout.progress', {
+                    done: workoutDone,
+                    total: todaySession.exercises.length,
+                  })}
+                </Text>
+              </>
+            ) : (
+              <Text style={theme.font.body}>
+                {workout ? t('workout.restDay') : t('workout.create')}
+              </Text>
+            )}
+          </Pressable>
+        </Card>
+
+        <Card title={t('nutrition.title')} icon="restaurant">
+          {todayMeals.length ? (
+            todayMeals.map((m) => {
+              const recipe = getRecipe(m.recipeId);
+              const eaten = todayEntries.some(
+                (e) =>
+                  e.source === 'recipe' && e.refId === m.recipeId && e.meal === SLOT_TO_LOG[m.slot],
+              );
+              return (
+                <Pressable
+                  key={m.slot}
+                  accessibilityRole="button"
+                  onPress={() => router.push('/meals')}
+                  style={s.mealRow}
+                >
+                  <IconCircle
+                    icon={eaten ? 'checkmark' : 'ellipse-outline'}
+                    size={28}
+                    color={eaten ? theme.colors.onPrimary : theme.colors.textMuted}
+                    background={eaten ? theme.colors.primary : theme.colors.surfaceAlt}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text style={theme.font.caption}>{t(`nutrition.slots.${m.slot}`)}</Text>
+                    <Text style={theme.font.body}>{recipe?.name[language]}</Text>
+                  </View>
+                  <Text style={theme.font.caption}>{m.nutrients.kcal} kcal</Text>
+                </Pressable>
+              );
+            })
+          ) : (
+            <Pressable accessibilityRole="button" onPress={() => router.push('/meals')}>
+              <Text style={theme.font.body}>{t('nutrition.emptyTitle')}</Text>
+            </Pressable>
+          )}
+        </Card>
+
+        <Card title={t('water.title')} icon="water">
+          <View style={s.waterRow}>
+            <View style={{ flex: 1, gap: 6 }}>
+              <Text style={theme.font.heading}>
+                {waterToday} ml{' '}
+                <Text style={theme.font.caption}>{t('water.goal', { goal: waterGoal })}</Text>
+              </Text>
+              <View style={s.waterTrack}>
+                <View
+                  style={[
+                    s.waterFill,
+                    { width: `${Math.min(100, (waterToday / waterGoal) * 100)}%` },
+                  ]}
+                />
+              </View>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('water.add')}
+              onPress={() => addWater(250)}
+              style={s.waterButton}
+            >
+              <Text style={s.waterButtonText}>{t('water.add')}</Text>
+            </Pressable>
+          </View>
+        </Card>
+
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/progress')}
+          style={s.progressRow}
+        >
+          <IconCircle
+            icon="stats-chart"
+            color={theme.colors.primary}
+            background={theme.colors.primarySoft}
+          />
+          <Text style={[theme.font.heading, { flex: 1 }]}>{t('progress.open')}</Text>
+          <IconCircle
+            icon="chevron-forward"
+            color={theme.colors.textMuted}
+            background="transparent"
+            size={28}
+          />
+        </Pressable>
 
         <Text style={s.sectionTitle}>{t('home.activity')}</Text>
         <View style={s.tiles}>

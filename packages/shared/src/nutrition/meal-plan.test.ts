@@ -156,6 +156,16 @@ describe('generateMealPlan', () => {
     expect(plan.issues).toEqual([]);
   });
 
+  it('nu depaseste limita superioara de proteine (2,0 g/kg)', () => {
+    // 78 kg: tinta 1,4 g/kg = 109 g, limita 2,0 g/kg = 156 g
+    const plan = planOf(
+      { diet: 'vegetarian', mealsPerDay: 4 },
+      { kcal: 2790, protein: 109, proteinMax: 156 },
+    );
+    for (const d of plan.days) expect(d.totals.protein).toBeLessThanOrEqual(156);
+    expect(plan.issues).not.toContain('protein_above_limit');
+  });
+
   it('favorizeaza alimentele preferate', () => {
     const count = (plan: MealPlan) =>
       plan.days
