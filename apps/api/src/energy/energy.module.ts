@@ -5,5 +5,6 @@ import { EnergyService } from './energy.service.js';
 @Module({
   controllers: [EnergyController],
   providers: [EnergyService],
+  exports: [EnergyService],
 })
 export class EnergyModule {}
