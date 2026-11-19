@@ -43,7 +43,7 @@ export class TrackingService {
     const rows = await this.db.asUser(userId, async (c) => {
       const { rows } = await c.query<{ day: string; weight_kg: number; waist_cm: number | null }>(
         `select to_char(day, 'YYYY-MM-DD') as day, weight_kg, waist_cm
-         from body_measurements where day >= $1 order by day`,
+         from body_measurements where user_id = app_user_id() and day >= $1 order by day`,
         [from],
       );
       return rows;
@@ -87,7 +87,8 @@ export class TrackingService {
       const today = todayIso();
       const weekStart = addDaysIso(today, -6);
       const logged = await c.query<{ n: string }>(
-        `select count(distinct day) as n from food_log where day between $1 and $2`,
+        `select count(distinct day) as n from food_log
+         where user_id = app_user_id() and day between $1 and $2`,
         [weekStart, today],
       );
       return {
@@ -112,9 +113,11 @@ export class TrackingService {
          values (app_user_id(), $1, $2, $3, 'accepted')`,
         [analysis.currentTarget, analysis.proposedTarget, analysis.weeklyChangePct],
       );
-      await c.query('update profiles set calorie_target = $1, updated_at = now()', [
-        analysis.proposedTarget,
-      ]);
+      await c.query(
+        `update profiles set calorie_target = $1, calorie_target_by = 'adjustment', updated_at = now()
+         where user_id = app_user_id()`,
+        [analysis.proposedTarget],
+      );
       return { targetCalories: analysis.proposedTarget };
     });
   }
@@ -144,11 +147,12 @@ export class TrackingService {
     const from = addDaysIso(today, -13);
     const weights = await c.query<{ day: string; weight_kg: number }>(
       `select to_char(day, 'YYYY-MM-DD') as day, weight_kg from body_measurements
-       where day between $1 and $2`,
+       where user_id = app_user_id() and day between $1 and $2`,
       [from, today],
     );
     const logged = await c.query<{ day: string }>(
-      `select distinct to_char(day, 'YYYY-MM-DD') as day from food_log where day between $1 and $2`,
+      `select distinct to_char(day, 'YYYY-MM-DD') as day from food_log
+       where user_id = app_user_id() and day between $1 and $2`,
       [from, today],
     );
     const last = await c.query<{ created_at: Date; status: string; proposed_target: number }>(

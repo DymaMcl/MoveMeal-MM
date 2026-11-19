@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   HttpException,
   HttpStatus,
   Injectable,
@@ -13,9 +14,17 @@ export const MAX_FAILED_LOGINS = 5;
 export const LOCK_MINUTES = 15;
 const SESSION_DAYS = 30;
 
+export type Role = 'user' | 'nutritionist' | 'admin';
+export const ROLES: readonly Role[] = ['user', 'nutritionist', 'admin'];
+
 export interface AuthResult {
   token: string;
-  user: { id: string; email: string };
+  user: { id: string; email: string; role: Role };
+}
+
+export interface SessionUser {
+  userId: string;
+  role: Role;
 }
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest();
@@ -45,7 +54,7 @@ export class AuthService {
     await this.db.asUser(userId, (c) =>
       c.query(`insert into consents (user_id, kind) values ($1, 'health_data')`, [userId]),
     );
-    return { token: await this.createSession(userId), user: { id: userId, email } };
+    return { token: await this.createSession(userId), user: { id: userId, email, role: 'user' } };
   }
 
   async login(email: string, password: string): Promise<AuthResult> {
@@ -54,7 +63,14 @@ export class AuthService {
       email: string;
       password_hash: string;
       locked_until: Date | null;
-    }>('select id, email, password_hash, locked_until from users where email = $1', [email]);
+      role: Role;
+      blocked_at: Date | null;
+      blocked_reason: string | null;
+    }>(
+      `select id, email, password_hash, locked_until, role, blocked_at, blocked_reason
+       from users where email = $1`,
+      [email],
+    );
     const user = rows[0];
 
     if (!user) {
@@ -79,20 +95,35 @@ export class AuthService {
       throw new UnauthorizedException('E-mail sau parola gresita.');
     }
 
+    // Contul blocat de administrator: motivul este afisat doar dupa parola corecta.
+    if (user.blocked_at) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        message: 'Contul a fost blocat de administrator.',
+        reason: user.blocked_reason ?? '',
+        code: 'account_blocked',
+      });
+    }
+
     await this.db.auth.query(
       'update users set failed_logins = 0, locked_until = null where id = $1',
       [user.id],
     );
-    return { token: await this.createSession(user.id), user: { id: user.id, email: user.email } };
+    return {
+      token: await this.createSession(user.id),
+      user: { id: user.id, email: user.email, role: user.role },
+    };
   }
 
-  /** Returneaza id-ul utilizatorului pentru un token valid sau null. */
-  async userIdForToken(token: string): Promise<string | null> {
-    const { rows } = await this.db.auth.query<{ user_id: string }>(
-      'select user_id from sessions where token_hash = $1 and expires_at > now()',
+  /** Utilizatorul (si rolul lui) pentru un token valid al unui cont neblocat sau null. */
+  async userForToken(token: string): Promise<SessionUser | null> {
+    const { rows } = await this.db.auth.query<{ user_id: string; role: Role }>(
+      `select s.user_id, u.role
+       from sessions s join users u on u.id = s.user_id
+       where s.token_hash = $1 and s.expires_at > now() and u.blocked_at is null`,
       [sha256(token)],
     );
-    return rows[0]?.user_id ?? null;
+    return rows[0] ? { userId: rows[0].user_id, role: rows[0].role } : null;
   }
 
   async logout(token: string): Promise<void> {
@@ -100,8 +131,8 @@ export class AuthService {
   }
 
   async me(userId: string) {
-    const { rows } = await this.db.auth.query<{ id: string; email: string }>(
-      'select id, email from users where id = $1',
+    const { rows } = await this.db.auth.query<{ id: string; email: string; role: Role }>(
+      'select id, email, role from users where id = $1',
       [userId],
     );
     const consent = await this.db.asUser(userId, (c) =>

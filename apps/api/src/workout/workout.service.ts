@@ -44,7 +44,9 @@ export class WorkoutService {
     if (errors.length > 0) throw new BadRequestException({ statusCode: 400, message: errors });
 
     return this.db.asUser(userId, async (c) => {
-      const profile = await c.query<{ goal: Goal }>('select goal from profiles');
+      const profile = await c.query<{ goal: Goal }>(
+        'select goal from profiles where user_id = app_user_id()',
+      );
       if (profile.rowCount === 0) {
         throw new NotFoundException('Completeaza mai intai profilul.');
       }

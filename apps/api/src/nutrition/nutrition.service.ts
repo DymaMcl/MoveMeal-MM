@@ -34,6 +34,7 @@ interface ProgramRow {
   preferences: NutritionPreferences;
   plan: MealPlan;
   salt: number;
+  nutritionist_adjusted_at: Date | null;
 }
 
 export interface LogEntry extends Nutrients {
@@ -67,7 +68,29 @@ export class NutritionService {
   async get(userId: string) {
     const row = await this.db.asUser(userId, (c) => this.programIn(c));
     if (!row) throw new NotFoundException('Planul alimentar nu a fost creat.');
-    return { preferences: row.preferences, plan: row.plan };
+    return {
+      preferences: row.preferences,
+      plan: row.plan,
+      adjustedByNutritionistAt: row.nutritionist_adjusted_at?.toISOString() ?? null,
+    };
+  }
+
+  /**
+   * Nutritionistul regenereaza planul clientului cu tinta noua (in tranzactia nutritionistului;
+   * politicile RLS permit operatia doar cu acordul clientului). Planul este marcat
+   * „ajustat de nutritionist”.
+   */
+  async regenerateFor(c: pg.PoolClient, clientId: string): Promise<boolean> {
+    const row = await this.programIn(c, clientId);
+    if (!row) return false;
+    const salt = row.salt + 1;
+    const plan = await this.generate(c, row.preferences, salt, clientId);
+    await c.query(
+      `update nutrition_programs set plan = $1, salt = $2, nutritionist_adjusted_at = now()
+       where user_id = $3`,
+      [JSON.stringify(plan), salt, clientId],
+    );
+    return true;
   }
 
   /** Salveaza preferintele si genereaza planul (inlocuieste planul existent, in aceeasi tranzactie). */
@@ -78,10 +101,11 @@ export class NutritionService {
         `insert into nutrition_programs (user_id, preferences, plan, salt)
          values (app_user_id(), $1, $2, 0)
          on conflict (user_id) do update set
-           preferences = excluded.preferences, plan = excluded.plan, salt = 0, created_at = now()`,
+           preferences = excluded.preferences, plan = excluded.plan, salt = 0, created_at = now(),
+           nutritionist_adjusted_at = null`,
         [JSON.stringify(preferences), JSON.stringify(plan)],
       );
-      return { preferences, plan };
+      return { preferences, plan, adjustedByNutritionistAt: null };
     });
   }
 
@@ -95,7 +119,11 @@ export class NutritionService {
           ? await this.generate(c, row.preferences, salt)
           : regenerateDay(row.plan, weekday, row.preferences, salt);
       await this.storePlan(c, plan, salt);
-      return { preferences: row.preferences, plan };
+      return {
+        preferences: row.preferences,
+        plan,
+        adjustedByNutritionistAt: row.nutritionist_adjusted_at?.toISOString() ?? null,
+      };
     });
   }
 
@@ -131,7 +159,11 @@ export class NutritionService {
         nutrients: roundNutrients(scaleNutrients(recipeNutrients(recipe), portions)),
       });
       await this.storePlan(c, plan, row.salt);
-      return { preferences: row.preferences, plan };
+      return {
+        preferences: row.preferences,
+        plan,
+        adjustedByNutritionistAt: row.nutritionist_adjusted_at?.toISOString() ?? null,
+      };
     });
   }
 
@@ -147,7 +179,7 @@ export class NutritionService {
       const { rows } = await c.query(
         `select id, to_char(day, 'YYYY-MM-DD') as day, meal, source, ref_id, name, amount, unit,
                 kcal, protein, carbs, fat
-         from food_log where day = $1 order by created_at`,
+         from food_log where user_id = app_user_id() and day = $1 order by created_at`,
         [day],
       );
       return rows.map((r) => ({
@@ -222,7 +254,7 @@ export class NutritionService {
     if (!meal) throw new NotFoundException('Masa nu exista in plan.');
     const already = await this.db.asUser(userId, (c) =>
       c.query(
-        `select 1 from food_log where day = $1 and meal = $2 and source = 'recipe' and ref_id = $3`,
+        `select 1 from food_log where user_id = app_user_id() and day = $1 and meal = $2 and source = 'recipe' and ref_id = $3`,
         [day, SLOT_TO_LOG_MEAL[slot], meal.recipeId],
       ),
     );
@@ -239,14 +271,14 @@ export class NutritionService {
   async deleteLog(userId: string, id: string): Promise<void> {
     await this.db.asUser(userId, async (c) => {
       const { rows } = await c.query<{ day: string }>(
-        `select to_char(day, 'YYYY-MM-DD') as day from food_log where id = $1`,
+        `select to_char(day, 'YYYY-MM-DD') as day from food_log where user_id = app_user_id() and id = $1`,
         [id],
       );
       if (!rows[0]) throw new NotFoundException();
       if (!isEditableDay(rows[0].day)) {
         throw new BadRequestException('Se pot modifica doar ultimele 14 zile.');
       }
-      await c.query('delete from food_log where id = $1', [id]);
+      await c.query('delete from food_log where user_id = app_user_id() and id = $1', [id]);
     });
   }
 
@@ -255,7 +287,7 @@ export class NutritionService {
     return this.db.asUser(userId, async (c) => {
       const { rows } = await c.query<{ ref_id: string }>(
         `select ref_id from food_log
-         where source = 'food' and day > current_date - 30
+         where user_id = app_user_id() and source = 'food' and day > current_date - 30
          group by ref_id
          order by max(created_at) desc, count(*) desc
          limit 12`,
@@ -266,9 +298,11 @@ export class NutritionService {
 
   // ------------------------------------------------------------------ intern
 
-  private async programIn(c: pg.PoolClient): Promise<ProgramRow | undefined> {
+  private async programIn(c: pg.PoolClient, userId?: string): Promise<ProgramRow | undefined> {
     const { rows } = await c.query<ProgramRow>(
-      'select preferences, plan, salt from nutrition_programs',
+      `select preferences, plan, salt, nutritionist_adjusted_at from nutrition_programs
+       where user_id = coalesce($1, app_user_id())`,
+      [userId ?? null],
     );
     return rows[0];
   }
@@ -280,14 +314,19 @@ export class NutritionService {
   }
 
   private async storePlan(c: pg.PoolClient, plan: MealPlan, salt: number) {
-    await c.query('update nutrition_programs set plan = $1, salt = $2', [
-      JSON.stringify(plan),
-      salt,
-    ]);
+    await c.query(
+      'update nutrition_programs set plan = $1, salt = $2 where user_id = app_user_id()',
+      [JSON.stringify(plan), salt],
+    );
   }
 
-  private async generate(c: pg.PoolClient, preferences: NutritionPreferences, salt: number) {
-    const current = await this.profiles.currentIn(c);
+  private async generate(
+    c: pg.PoolClient,
+    preferences: NutritionPreferences,
+    salt: number,
+    userId?: string,
+  ) {
+    const current = await this.profiles.currentIn(c, userId);
     if (!current) throw new NotFoundException('Completeaza mai intai profilul.');
     const result = generateMealPlan(
       preferences,

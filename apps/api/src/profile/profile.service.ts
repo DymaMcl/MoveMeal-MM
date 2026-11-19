@@ -20,6 +20,8 @@ interface ProfileRow {
   target_weight_kg: number | null;
   weeks: number | null;
   calorie_target: number | null;
+  calorie_target_by: 'adjustment' | 'nutritionist' | null;
+  nutritionist_note: string | null;
 }
 
 function toProfile(row: ProfileRow): Profile {
@@ -42,9 +44,14 @@ const COLUMNS =
 export interface CurrentEnergy {
   profile: Profile;
   plan: EnergyPlan;
-  /** Tinta a fost modificata printr-o ajustare acceptata. */
+  /** Tinta a fost modificata printr-o ajustare acceptata sau de nutritionist. */
   adjusted: boolean;
+  /** Cine a stabilit tinta: ajustarea automata acceptata sau nutritionistul. */
+  adjustedBy: 'adjustment' | 'nutritionist' | null;
+  nutritionistNote: string | null;
 }
+
+const EXTRA = 'calorie_target, calorie_target_by, nutritionist_note';
 
 @Injectable()
 export class ProfileService {
@@ -54,9 +61,10 @@ export class ProfileService {
   ) {}
 
   /** Profilul si planul caloric efectiv, in tranzactia data (folosit si de alte module). */
-  async currentIn(client: pg.PoolClient): Promise<CurrentEnergy | null> {
+  async currentIn(client: pg.PoolClient, userId?: string): Promise<CurrentEnergy | null> {
     const { rows } = await client.query<ProfileRow>(
-      `select ${COLUMNS}, calorie_target from profiles`,
+      `select ${COLUMNS}, ${EXTRA} from profiles where user_id = coalesce($1, app_user_id())`,
+      [userId ?? null],
     );
     return rows[0] ? this.withPlan(rows[0]) : null;
   }
@@ -79,8 +87,8 @@ export class ProfileService {
            height_cm = excluded.height_cm, weight_kg = excluded.weight_kg,
            goal = excluded.goal, activity_level = excluded.activity_level,
            target_weight_kg = excluded.target_weight_kg, weeks = excluded.weeks,
-           calorie_target = null, updated_at = now()
-         returning ${COLUMNS}, calorie_target`,
+           calorie_target = null, calorie_target_by = null, updated_at = now()
+         returning ${COLUMNS}, ${EXTRA}`,
         [
           userId,
           dto.name.trim(),
@@ -102,7 +110,10 @@ export class ProfileService {
   private withPlan(row: ProfileRow): CurrentEnergy {
     const profile = toProfile(row);
     const { plan } = this.energy.calculate(profile);
-    if (row.calorie_target === null) return { profile, plan, adjusted: false };
+    const note = row.nutritionist_note ?? null;
+    if (row.calorie_target === null) {
+      return { profile, plan, adjusted: false, adjustedBy: null, nutritionistNote: note };
+    }
     return {
       profile,
       plan: {
@@ -111,11 +122,20 @@ export class ProfileService {
         macros: calculateMacros(row.calorie_target, profile.weightKg, profile.goal),
       },
       adjusted: true,
+      adjustedBy: row.calorie_target_by ?? 'adjustment',
+      nutritionistNote: note,
     };
   }
 
   private response(current: CurrentEnergy) {
     const { goalCheck } = this.energy.calculate(current.profile);
-    return { profile: current.profile, plan: current.plan, goalCheck, adjusted: current.adjusted };
+    return {
+      profile: current.profile,
+      plan: current.plan,
+      goalCheck,
+      adjusted: current.adjusted,
+      adjustedBy: current.adjustedBy,
+      nutritionistNote: current.nutritionistNote,
+    };
   }
 }

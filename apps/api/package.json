@@ -23,7 +23,8 @@
     "prestart:dev": "npm run build --workspace=@movemeal/shared",
     "pretest": "npm run build --workspace=@movemeal/shared",
     "typecheck": "tsc --noEmit",
-    "db:migrate": "nest build && node dist/database/migrate.js"
+    "db:migrate": "nest build && node dist/database/migrate.js",
+    "user:role": "nest build && node dist/admin/set-role.js"
   },
   "dependencies": {
     "@movemeal/shared": "*",
