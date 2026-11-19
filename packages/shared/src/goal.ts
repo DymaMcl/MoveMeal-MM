@@ -1,10 +1,6 @@
 import { bmi } from './limits.ts';
 
-export type GoalCheckStatus =
-  | 'ok'
-  | 'too_fast'
-  | 'wrong_direction'
-  | 'unhealthy_target';
+export type GoalCheckStatus = 'ok' | 'too_fast' | 'wrong_direction' | 'unhealthy_target';
 
 export interface GoalCheck {
   status: GoalCheckStatus;
@@ -39,8 +35,7 @@ export function checkWeightGoal(params: {
 }): GoalCheck {
   const { goal, weightKg, heightCm, targetWeightKg, weeks } = params;
   const diff = Math.abs(targetWeightKg - weightKg);
-  const maxWeeklyRateKg =
-    goal === 'lose' ? maxSafeLossPerWeek(weightKg) : MAX_SAFE_GAIN_PER_WEEK;
+  const maxWeeklyRateKg = goal === 'lose' ? maxSafeLossPerWeek(weightKg) : MAX_SAFE_GAIN_PER_WEEK;
   const recommendedWeeks = Math.max(1, Math.ceil(diff / maxWeeklyRateKg - 1e-9));
   const weeklyRateKg = weeks > 0 ? diff / weeks : Infinity;
   const base = { weeklyRateKg, maxWeeklyRateKg, recommendedWeeks };
