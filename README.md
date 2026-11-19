@@ -61,6 +61,27 @@ npm run user:role --workspace=apps/api -- email@exemplu.md admin
 Apoi administratorul poate face alte conturi nutriționist sau administrator din panoul său
 (meniul cu 3 linii → „Panoul administratorului” → „Conturi”).
 
+## Asistentul AI și fotografierea mesei (Google Gemini)
+
+Cheia se obține gratuit din [Google AI Studio](https://aistudio.google.com/apikey) și se pune în
+`.env` (fișierul nu se trimite pe GitHub):
+
+```bash
+GEMINI_API_KEY=cheia-ta
+```
+
+- Cheia rămâne pe server; aplicația mobilă nu o cunoaște.
+- Modelele implicite sunt `gemini-3.5-flash-lite` (chat) și `gemini-3.8-flash` (fotografii); se pot
+  schimba cu `GEMINI_CHAT_MODEL` și `GEMINI_VISION_MODEL`.
+- Modelului i se trimit doar prenumele, datele din profil, ținta și jurnalul zilei (fără e-mail).
+  Fotografia este micșorată pe telefon și nu se salvează pe server; se păstrează doar alimentele
+  recunoscute, iar valorile din jurnal sunt calculate pe server.
+- Limită zilnică pe utilizator: 60 de întrebări și 15 fotografii.
+- Fără cheie (sau dacă Gemini nu răspunde), asistentul folosește răspunsurile din regulile aplicației,
+  iar fotografierea mesei trimite la adăugarea manuală.
+- Pe nivelul gratuit, Google poate folosi datele trimise pentru a-și îmbunătăți produsele; pe nivelul
+  plătit, nu.
+
 ## Teste
 
 ```bash
@@ -94,7 +115,7 @@ npm run typecheck                                            # verificarea tipur
 - [x] Jurnalul alimentar: căutare (recente primele), grame sau bucăți, „Mâncat” din plan, ultimele 14 zile
 - [x] Greutatea și apa; pagina „Progres” cu media pe 7 zile (4, 8, 12 săptămâni)
 - [x] Ajustarea automată a țintei calorice (minimum 6 cântăriri, jurnal în 10 din 14 zile, ±5%)
-- [ ] Recunoașterea alimentelor din fotografie (AI)
+- [x] Fotografierea mesei: Gemini recunoaște alimentele și estimează gramajul; utilizatorul corectează și salvează în jurnal
 - [ ] Înregistrarea seriilor (greutate, repetări), cronometrul de pauză și recordurile personale
 - [x] Roluri: utilizator, nutriționist, administrator (verificate pe server la fiecare cerere)
 - [x] Meniul cu 3 linii (dreapta sus) cu toate paginile, în funcție de rol
@@ -105,8 +126,7 @@ npm run typecheck                                            # verificarea tipur
 - [x] Panoul administratorului în aplicație: statistici, conturi, roluri, blocare cu motiv, jurnal, parametri
 - [x] Notificări în aplicație (programări, ajustări)
 - [x] Cântar ponderal: IMC (clasificarea OMS), greutate sănătoasă, grăsime estimată, metabolism bazal, talie
-- [x] Asistent (chat) cu răspunsuri automate din regulile aplicației și datele utilizatorului
-- [ ] Asistent AI și recunoașterea alimentelor din fotografie (necesită un serviciu AI)
+- [x] Asistent (chat) cu Google Gemini, pe baza profilului și jurnalului zilei; fără AI răspunde din regulile aplicației
 - [ ] Blog
 - [ ] Notificări push și raportul săptămânal
 - [ ] Site web separat pentru panourile de administrare și al nutriționistului
