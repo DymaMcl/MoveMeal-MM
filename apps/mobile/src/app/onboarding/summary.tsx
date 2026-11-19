@@ -1,7 +1,9 @@
 import { calculateEnergyPlan } from '@movemeal/shared';
 import { Redirect, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useState } from 'react';
 import { Text, View } from 'react-native';
+import { errorKey } from '@/api/errors';
 import { Button, Notice, Screen, Subtitle, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { isCompleteProfile, useAppState } from '@/state/app-state';
@@ -40,12 +42,23 @@ export default function SummaryStep() {
     macroValue: { ...th.font.heading, fontSize: 20 },
   }));
 
+  const [busy, setBusy] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   if (!isCompleteProfile(draft)) return <Redirect href="/onboarding/personal" />;
   const plan = calculateEnergyPlan(draft);
 
   async function onFinish() {
-    await completeOnboarding();
-    router.replace('/home');
+    setBusy(true);
+    setSaveError(null);
+    try {
+      await completeOnboarding();
+      router.replace('/home');
+    } catch (error) {
+      setSaveError(t(errorKey(error)));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const macros = [
@@ -66,6 +79,7 @@ export default function SummaryStep() {
             title={t('onboarding.summary.finish')}
             icon="checkmark-circle"
             onPress={onFinish}
+            disabled={busy}
           />
           <Button title={t('common.back')} variant="ghost" onPress={() => router.back()} />
         </>
@@ -107,6 +121,7 @@ export default function SummaryStep() {
           </View>
         ))}
       </View>
+      {saveError ? <Notice>{saveError}</Notice> : null}
       <Notice tone="info">{t('common.disclaimer')}</Notice>
     </Screen>
   );

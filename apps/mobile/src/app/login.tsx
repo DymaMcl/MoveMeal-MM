@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Button, Field, Screen, Subtitle, Title } from '@/components/ui';
+import { errorKey } from '@/api/errors';
+import { Button, Field, Notice, Screen, Subtitle, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { isValidEmail, MIN_PASSWORD_LENGTH } from '@/state/validation';
@@ -11,6 +12,8 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const emailError = submitted && !isValidEmail(email) ? t('auth.errors.email') : null;
   const passwordError =
@@ -18,17 +21,24 @@ export default function Login() {
 
   async function onSubmit() {
     setSubmitted(true);
+    setServerError(null);
     if (!isValidEmail(email) || password.length < MIN_PASSWORD_LENGTH) return;
-    // TODO: autentificare prin API (sesiune in cookie HttpOnly), conform cerintelor.
-    await signIn(email.trim().toLowerCase());
-    router.replace('/');
+    setBusy(true);
+    try {
+      await signIn(email.trim().toLowerCase(), password);
+      router.replace('/');
+    } catch (error) {
+      setServerError(t(errorKey(error)));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <Screen
       footer={
         <>
-          <Button title={t('auth.loginAction')} onPress={onSubmit} />
+          <Button title={t('auth.loginAction')} onPress={onSubmit} disabled={busy} />
           <Button
             title={t('auth.noAccount')}
             variant="ghost"
@@ -58,6 +68,7 @@ export default function Login() {
         icon="lock-closed-outline"
         error={passwordError}
       />
+      {serverError ? <Notice>{serverError}</Notice> : null}
     </Screen>
   );
 }

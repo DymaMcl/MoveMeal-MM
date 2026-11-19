@@ -25,6 +25,13 @@ export const en: Dictionary = {
       nutritionist: 'Nutritionist',
     },
   },
+  errors: {
+    network: 'Cannot reach the server. Check your internet connection and try again.',
+    invalidCredentials: 'Wrong email or password.',
+    emailTaken: 'An account with this email already exists.',
+    locked: 'Too many failed attempts. The account is temporarily locked, try again in 15 minutes.',
+    unknown: 'Something went wrong. Please try again.',
+  },
   settings: {
     title: 'Settings',
     theme: 'Appearance',

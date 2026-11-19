@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import {
   createContext,
   useCallback,
@@ -9,16 +10,16 @@ import {
   type ReactNode,
 } from 'react';
 import { calculateEnergyPlan, type EnergyPlan, type EnergyProfile } from '@movemeal/shared';
+import { api, ApiError } from '@/api/client';
 
 /**
- * Starea locala a aplicatiei. Pana la conectarea la server (NestJS),
- * sesiunea si profilul sunt pastrate doar pe dispozitiv.
+ * Starea aplicatiei. Contul si profilul sunt pastrate pe server; pe telefon raman
+ * tokenul sesiunii (stocare securizata) si o copie a profilului pentru pornire rapida.
  */
 
 export interface Session {
   email: string;
-  healthDataConsent: boolean;
-  createdAt: string;
+  token: string;
 }
 
 export interface UserProfile extends EnergyProfile {
@@ -28,7 +29,8 @@ export interface UserProfile extends EnergyProfile {
 export type ProfileDraft = Partial<UserProfile>;
 
 const KEYS = {
-  session: 'movemeal.session',
+  token: 'movemeal.token',
+  email: 'movemeal.email',
   profile: 'movemeal.profile',
 } as const;
 
@@ -38,22 +40,28 @@ interface AppStateValue {
   profile: UserProfile | null;
   plan: EnergyPlan | null;
   draft: ProfileDraft;
-  signIn: (email: string, healthDataConsent?: boolean) => Promise<void>;
+  register: (email: string, password: string, healthDataConsent: boolean) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   updateDraft: (patch: ProfileDraft) => void;
   completeOnboarding: () => Promise<void>;
-  resetProfile: () => Promise<void>;
+  resetProfile: () => void;
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null);
 
-async function readJson<T>(key: string): Promise<T | null> {
+async function readProfileCache(): Promise<UserProfile | null> {
   try {
-    const raw = await AsyncStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : null;
+    const raw = await AsyncStorage.getItem(KEYS.profile);
+    return raw ? (JSON.parse(raw) as UserProfile) : null;
   } catch {
     return null;
   }
+}
+
+async function writeProfileCache(profile: UserProfile | null): Promise<void> {
+  if (profile) await AsyncStorage.setItem(KEYS.profile, JSON.stringify(profile));
+  else await AsyncStorage.removeItem(KEYS.profile);
 }
 
 export function isCompleteProfile(draft: ProfileDraft): draft is UserProfile {
@@ -78,48 +86,102 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [draft, setDraft] = useState<ProfileDraft>({});
 
-  useEffect(() => {
-    (async () => {
-      const [s, p] = await Promise.all([
-        readJson<Session>(KEYS.session),
-        readJson<UserProfile>(KEYS.profile),
-      ]);
-      setSession(s);
-      setProfile(p);
-      setReady(true);
-    })();
-  }, []);
-
-  const signIn = useCallback(async (email: string, healthDataConsent = true) => {
-    const next: Session = { email, healthDataConsent, createdAt: new Date().toISOString() };
-    await AsyncStorage.setItem(KEYS.session, JSON.stringify(next));
-    setSession(next);
-  }, []);
-
-  const signOut = useCallback(async () => {
-    await AsyncStorage.multiRemove([KEYS.session, KEYS.profile]);
+  const clearLocal = useCallback(async () => {
+    await Promise.all([
+      SecureStore.deleteItemAsync(KEYS.token),
+      AsyncStorage.removeItem(KEYS.email),
+      writeProfileCache(null),
+    ]);
     setSession(null);
     setProfile(null);
     setDraft({});
   }, []);
+
+  // La pornire: sesiunea salvata + copia profilului, apoi sincronizare cu serverul.
+  useEffect(() => {
+    (async () => {
+      const [token, email, cached] = await Promise.all([
+        SecureStore.getItemAsync(KEYS.token),
+        AsyncStorage.getItem(KEYS.email),
+        readProfileCache(),
+      ]);
+      if (token && email) {
+        setSession({ token, email });
+        setProfile(cached);
+      }
+      setReady(true);
+
+      if (!token) return;
+      try {
+        const { profile: remote } = await api.getProfile(token);
+        setProfile(remote);
+        await writeProfileCache(remote);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 401) await clearLocal();
+        else if (error instanceof ApiError && error.status === 404) {
+          setProfile(null);
+          await writeProfileCache(null);
+        }
+        // Fara conexiune: se foloseste copia locala.
+      }
+    })();
+  }, [clearLocal]);
+
+  const startSession = useCallback(async (token: string, email: string) => {
+    await Promise.all([
+      SecureStore.setItemAsync(KEYS.token, token),
+      AsyncStorage.setItem(KEYS.email, email),
+    ]);
+    setSession({ token, email });
+    try {
+      const { profile: remote } = await api.getProfile(token);
+      setProfile(remote);
+      await writeProfileCache(remote);
+    } catch {
+      setProfile(null);
+    }
+  }, []);
+
+  const register = useCallback(
+    async (email: string, password: string, healthDataConsent: boolean) => {
+      const res = await api.register(email, password, healthDataConsent);
+      await startSession(res.token, res.user.email);
+    },
+    [startSession],
+  );
+
+  const signIn = useCallback(
+    async (email: string, password: string) => {
+      const res = await api.login(email, password);
+      await startSession(res.token, res.user.email);
+    },
+    [startSession],
+  );
+
+  const signOut = useCallback(async () => {
+    if (session) await api.logout(session.token).catch(() => undefined);
+    await clearLocal();
+  }, [session, clearLocal]);
 
   const updateDraft = useCallback((patch: ProfileDraft) => {
     setDraft((prev) => ({ ...prev, ...patch }));
   }, []);
 
   const completeOnboarding = useCallback(async () => {
+    if (!session) throw new Error('Nu exista sesiune');
     if (!isCompleteProfile(draft)) throw new Error('Profil incomplet');
-    const next: UserProfile = { ...draft };
-    if (next.goal !== 'lose' && next.goal !== 'gain') {
-      delete next.targetWeightKg;
-      delete next.weeks;
+    const payload: UserProfile = { ...draft };
+    if (payload.goal !== 'lose' && payload.goal !== 'gain') {
+      delete payload.targetWeightKg;
+      delete payload.weeks;
     }
-    await AsyncStorage.setItem(KEYS.profile, JSON.stringify(next));
-    setProfile(next);
-  }, [draft]);
+    const { profile: saved } = await api.saveProfile(session.token, payload);
+    await writeProfileCache(saved);
+    setProfile(saved);
+  }, [draft, session]);
 
-  const resetProfile = useCallback(async () => {
-    await AsyncStorage.removeItem(KEYS.profile);
+  /** Porneste din nou chestionarul, cu valorile actuale precompletate. */
+  const resetProfile = useCallback(() => {
     setDraft(profile ?? {});
     setProfile(null);
   }, [profile]);
@@ -133,6 +195,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       profile,
       plan,
       draft,
+      register,
       signIn,
       signOut,
       updateDraft,
@@ -145,6 +208,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       profile,
       plan,
       draft,
+      register,
       signIn,
       signOut,
       updateDraft,

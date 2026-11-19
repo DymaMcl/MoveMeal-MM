@@ -23,6 +23,13 @@ export const ro = {
       nutritionist: 'Nutriționist',
     },
   },
+  errors: {
+    network: 'Nu ne putem conecta la server. Verifică conexiunea la internet și încearcă din nou.',
+    invalidCredentials: 'E-mail sau parolă greșită.',
+    emailTaken: 'Există deja un cont cu acest e-mail.',
+    locked: 'Prea multe încercări greșite. Contul este blocat temporar, încearcă peste 15 minute.',
+    unknown: 'A apărut o eroare. Încearcă din nou.',
+  },
   settings: {
     title: 'Setări',
     theme: 'Aspect',

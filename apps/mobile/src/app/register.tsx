@@ -2,7 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Button, Field, Screen, Subtitle, Title } from '@/components/ui';
+import { errorKey } from '@/api/errors';
+import { Button, Field, Notice, Screen, Subtitle, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { isValidEmail, MIN_PASSWORD_LENGTH } from '@/state/validation';
@@ -11,7 +12,9 @@ import { useStyles, useTheme } from '@/theme';
 export default function Register() {
   const { t } = useI18n();
   const theme = useTheme();
-  const { signIn } = useAppState();
+  const { register } = useAppState();
+  const [busy, setBusy] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -51,17 +54,25 @@ export default function Register() {
 
   async function onSubmit() {
     setSubmitted(true);
+    setServerError(null);
     if (!valid) return;
-    // TODO: inregistrare prin API; parola se trimite doar serverului, niciodata nu se pastreaza local.
-    await signIn(email.trim().toLowerCase(), consent);
-    router.replace('/onboarding/personal');
+    setBusy(true);
+    try {
+      // Parola se trimite doar serverului si nu se pastreaza pe telefon.
+      await register(email.trim().toLowerCase(), password, consent);
+      router.replace('/onboarding/personal');
+    } catch (error) {
+      setServerError(t(errorKey(error)));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <Screen
       footer={
         <>
-          <Button title={t('auth.registerAction')} onPress={onSubmit} />
+          <Button title={t('auth.registerAction')} onPress={onSubmit} disabled={busy} />
           <Button
             title={t('auth.haveAccount')}
             variant="ghost"
@@ -111,6 +122,7 @@ export default function Register() {
         <Text style={s.consentText}>{t('auth.consent')}</Text>
       </Pressable>
       {show(errors.consent) ? <Text style={s.error}>{errors.consent}</Text> : null}
+      {serverError ? <Notice>{serverError}</Notice> : null}
     </Screen>
   );
 }

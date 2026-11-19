@@ -136,7 +136,7 @@ export default function More() {
           icon="refresh"
           variant="secondary"
           onPress={async () => {
-            await resetProfile();
+            resetProfile();
             router.replace('/onboarding/personal');
           }}
         />
