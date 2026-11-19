@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { EnergyProfile } from '@movemeal/shared';
+import { calculateMacros, type EnergyPlan, type EnergyProfile } from '@movemeal/shared';
+import type pg from 'pg';
 import { DatabaseService } from '../database/database.service.js';
 import { EnergyService } from '../energy/energy.service.js';
 import type { ProfileDto } from './profile.dto.js';
@@ -18,6 +19,7 @@ interface ProfileRow {
   activity_level: Profile['activityLevel'];
   target_weight_kg: number | null;
   weeks: number | null;
+  calorie_target: number | null;
 }
 
 function toProfile(row: ProfileRow): Profile {
@@ -37,6 +39,13 @@ function toProfile(row: ProfileRow): Profile {
 const COLUMNS =
   'name, age, sex, height_cm, weight_kg, goal, activity_level, target_weight_kg, weeks';
 
+export interface CurrentEnergy {
+  profile: Profile;
+  plan: EnergyPlan;
+  /** Tinta a fost modificata printr-o ajustare acceptata. */
+  adjusted: boolean;
+}
+
 @Injectable()
 export class ProfileService {
   constructor(
@@ -44,18 +53,24 @@ export class ProfileService {
     private readonly energy: EnergyService,
   ) {}
 
+  /** Profilul si planul caloric efectiv, in tranzactia data (folosit si de alte module). */
+  async currentIn(client: pg.PoolClient): Promise<CurrentEnergy | null> {
+    const { rows } = await client.query<ProfileRow>(
+      `select ${COLUMNS}, calorie_target from profiles`,
+    );
+    return rows[0] ? this.withPlan(rows[0]) : null;
+  }
+
   async get(userId: string) {
-    const row = await this.db.asUser(userId, async (c) => {
-      const { rows } = await c.query<ProfileRow>(`select ${COLUMNS} from profiles`);
-      return rows[0];
-    });
-    if (!row) throw new NotFoundException('Profilul nu a fost completat.');
-    return this.withPlan(toProfile(row));
+    const current = await this.db.asUser(userId, (c) => this.currentIn(c));
+    if (!current) throw new NotFoundException('Profilul nu a fost completat.');
+    return this.response(current);
   }
 
   async save(userId: string, dto: ProfileDto) {
     const hasTarget = dto.goal === 'lose' || dto.goal === 'gain';
     const row = await this.db.asUser(userId, async (c) => {
+      // La modificarea profilului, tinta se recalculeaza (ajustarea anterioara nu mai e valabila).
       const { rows } = await c.query<ProfileRow>(
         `insert into profiles (user_id, ${COLUMNS})
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
@@ -64,8 +79,8 @@ export class ProfileService {
            height_cm = excluded.height_cm, weight_kg = excluded.weight_kg,
            goal = excluded.goal, activity_level = excluded.activity_level,
            target_weight_kg = excluded.target_weight_kg, weeks = excluded.weeks,
-           updated_at = now()
-         returning ${COLUMNS}`,
+           calorie_target = null, updated_at = now()
+         returning ${COLUMNS}, calorie_target`,
         [
           userId,
           dto.name.trim(),
@@ -81,10 +96,26 @@ export class ProfileService {
       );
       return rows[0];
     });
-    return this.withPlan(toProfile(row));
+    return this.response(this.withPlan(row));
   }
 
-  private withPlan(profile: Profile) {
-    return { profile, ...this.energy.calculate(profile) };
+  private withPlan(row: ProfileRow): CurrentEnergy {
+    const profile = toProfile(row);
+    const { plan } = this.energy.calculate(profile);
+    if (row.calorie_target === null) return { profile, plan, adjusted: false };
+    return {
+      profile,
+      plan: {
+        ...plan,
+        targetCalories: row.calorie_target,
+        macros: calculateMacros(row.calorie_target, profile.weightKg, profile.goal),
+      },
+      adjusted: true,
+    };
+  }
+
+  private response(current: CurrentEnergy) {
+    const { goalCheck } = this.energy.calculate(current.profile);
+    return { profile: current.profile, plan: current.plan, goalCheck, adjusted: current.adjusted };
   }
 }

@@ -8,5 +8,6 @@ import { ProfileService } from './profile.service.js';
   imports: [AuthModule, EnergyModule],
   controllers: [ProfileController],
   providers: [ProfileService],
+  exports: [ProfileService],
 })
 export class ProfileModule {}
