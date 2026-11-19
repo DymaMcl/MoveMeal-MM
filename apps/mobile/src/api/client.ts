@@ -1,4 +1,4 @@
-import type { EnergyPlan, EnergyProfile } from '@movemeal/shared';
+import type { EnergyPlan, EnergyProfile, WorkoutPlan, WorkoutPreferences } from '@movemeal/shared';
 import Constants from 'expo-constants';
 
 /**
@@ -76,4 +76,22 @@ export const api = {
   getProfile: (token: string) => request<ProfileResponse>('/me/profile', { token }),
   saveProfile: (token: string, profile: EnergyProfile & { name: string }) =>
     request<ProfileResponse>('/me/profile', { method: 'PUT', body: profile, token }),
+  getWorkout: (token: string) => request<WorkoutProgram>('/me/workout', { token }),
+  saveWorkout: (token: string, preferences: WorkoutPreferences) =>
+    request<WorkoutProgram>('/me/workout', { method: 'PUT', body: preferences, token }),
+  getWorkoutLog: (token: string, from: string, to: string) =>
+    request<WorkoutLogEntry[]>(`/me/workout/log?from=${from}&to=${to}`, { token }),
+  setWorkoutLog: (token: string, day: string, exerciseId: string, done: boolean) =>
+    request<void>('/me/workout/log', { method: 'PUT', body: { day, exerciseId, done }, token }),
 };
+
+export interface WorkoutProgram {
+  preferences: WorkoutPreferences;
+  plan: WorkoutPlan;
+  createdAt: string;
+}
+
+export interface WorkoutLogEntry {
+  day: string;
+  exerciseId: string;
+}

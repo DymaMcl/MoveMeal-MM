@@ -3,6 +3,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { I18nProvider } from '@/i18n';
 import { AppStateProvider } from '@/state/app-state';
+import { WorkoutProvider } from '@/state/workout-state';
 import { ThemeProvider, useTheme } from '@/theme';
 
 function ThemedStack() {
@@ -26,7 +27,9 @@ export default function RootLayout() {
       <ThemeProvider>
         <I18nProvider>
           <AppStateProvider>
-            <ThemedStack />
+            <WorkoutProvider>
+              <ThemedStack />
+            </WorkoutProvider>
           </AppStateProvider>
         </I18nProvider>
       </ThemeProvider>
