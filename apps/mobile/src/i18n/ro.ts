@@ -434,6 +434,8 @@ export const ro = {
     amount: 'Cantitate',
     grams: 'grame',
     pieces: 'bucăți',
+    pieceHint: '1 bucată = {grams} g (greutatea medie standard)',
+    pieceShort: '1 buc. ≈ {grams} g',
     addToLog: 'Adaugă în jurnal',
     added: 'Adăugat în jurnal',
     deleteConfirm: 'Ștergi „{name}” din jurnal?',

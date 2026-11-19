@@ -429,6 +429,8 @@ export const en: Dictionary = {
     amount: 'Amount',
     grams: 'grams',
     pieces: 'pieces',
+    pieceHint: '1 piece = {grams} g (standard average weight)',
+    pieceShort: '1 pc ≈ {grams} g',
     addToLog: 'Add to journal',
     added: 'Added to journal',
     deleteConfirm: 'Remove "{name}" from the journal?',

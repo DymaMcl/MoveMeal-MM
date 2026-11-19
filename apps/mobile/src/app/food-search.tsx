@@ -107,10 +107,14 @@ export default function FoodSearch() {
   const grams = food ? (unit === 'piece' ? amount * (food.pieceGrams ?? 0) : amount) : 0;
   const preview = food ? roundNutrients(foodNutrients(food, grams)) : null;
 
+  /**
+   * Alimentele care se numara (oua, fructe, felii de paine) pornesc de la 1 bucata cu greutatea
+   * medie standard, ca utilizatorul sa nu fie nevoit sa cantareasca fiecare bucata.
+   */
   function select(f: Food) {
     setFood(f);
-    setUnit('g');
-    setAmountText(String(f.pieceGrams ?? 100));
+    setUnit(f.pieceGrams ? 'piece' : 'g');
+    setAmountText(f.pieceGrams ? '1' : '100');
     setError(null);
   }
 
@@ -141,6 +145,7 @@ export default function FoodSearch() {
         <Text style={theme.font.body}>{f.name[language]}</Text>
         <Text style={theme.font.caption}>
           {f.kcal} kcal · P {f.protein} g · {t('journal.per100')}
+          {f.pieceGrams ? ` · ${t('journal.pieceShort', { grams: f.pieceGrams })}` : ''}
         </Text>
       </View>
       <Ionicons name="add-circle-outline" size={24} color={theme.colors.primary} />
@@ -168,8 +173,8 @@ export default function FoodSearch() {
           {food.pieceGrams ? (
             <Segmented
               options={[
+                { value: 'piece', label: t('journal.pieces') },
                 { value: 'g', label: t('journal.grams') },
-                { value: 'piece', label: `${t('journal.pieces')} (${food.pieceGrams} g)` },
               ]}
               value={unit}
               onChange={(u) => {
@@ -184,6 +189,16 @@ export default function FoodSearch() {
             onChangeText={setAmountText}
             keyboardType="decimal-pad"
             suffix={unit === 'g' ? 'g' : t('journal.pieces')}
+            hint={
+              food.pieceGrams ? (
+                <Text style={theme.font.caption}>
+                  {t('journal.pieceHint', { grams: food.pieceGrams })}
+                  {unit === 'piece' && amount > 0 && amount !== 1
+                    ? ` · ${String(amount).replace('.', ',')} × ${food.pieceGrams} g = ${Math.round(grams)} g`
+                    : ''}
+                </Text>
+              ) : undefined
+            }
           />
           <View style={s.values}>
             <View style={s.value}>

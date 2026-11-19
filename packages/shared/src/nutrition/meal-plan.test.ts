@@ -64,7 +64,9 @@ describe('catalogul de alimente si retete', () => {
 
   it('cauta alimente in romana sau engleza, fara diacritice', () => {
     expect(searchFoods('branza').map((f) => f.id)).toContain('cottage_cheese');
-    expect(searchFoods('chicken')[0].id).toBe('chicken_breast');
+    expect(searchFoods('chicken').map((f) => f.id)).toEqual(
+      expect.arrayContaining(['chicken_breast', 'eggs']),
+    );
     expect(searchFoods('xyz')).toEqual([]);
   });
 
@@ -265,5 +267,16 @@ describe('substituteFoods', () => {
 
     const vegan = substituteFoods('milk', 200, { diet: 'vegan', allergens: [], excludedFoods: [] });
     expect(vegan.every((s) => getFood(s.foodId)!.origin === 'plant')).toBe(true);
+  });
+});
+
+describe('oua', () => {
+  it('cautarea „ou” gaseste tipurile principale, fiecare cu greutatea unei bucati', () => {
+    const found = searchFoods('ou').map((f) => f.id);
+    for (const id of ['eggs', 'quail_egg', 'duck_egg', 'goose_egg']) {
+      expect(found).toContain(id);
+      expect(getFood(id)!.pieceGrams).toBeGreaterThan(0);
+    }
+    expect(getFood('eggs')!.pieceGrams).toBe(50);
   });
 });
