@@ -1,3 +1,4 @@
+import { RU_FOODS } from '../i18n/ru-catalog.ts';
 import type { Food } from './types.ts';
 
 /**
@@ -1010,16 +1011,18 @@ export function getFood(id: string): Food | undefined {
   return BY_ID.get(id);
 }
 
-/** Cauta alimente dupa denumire, in romana sau engleza (fara diacritice si majuscule). */
+/** Cauta alimente dupa denumire in romana, engleza sau rusa (fara diacritice si majuscule). */
 export function searchFoods(query: string, foods: Food[] = FOODS): Food[] {
   const q = normalize(query);
   if (!q) return [];
   return foods
     .map((f) => {
-      const ro = normalize(f.name.ro);
-      const en = normalize(f.name.en);
-      const score =
-        ro.startsWith(q) || en.startsWith(q) ? 0 : ro.includes(q) || en.includes(q) ? 1 : 2;
+      const names = [f.name.ro, f.name.en, RU_FOODS[f.id] ?? ''].map(normalize);
+      const score = names.some((n) => n.startsWith(q))
+        ? 0
+        : names.some((n) => n.includes(q))
+          ? 1
+          : 2;
       return { f, score };
     })
     .filter((x) => x.score < 2)

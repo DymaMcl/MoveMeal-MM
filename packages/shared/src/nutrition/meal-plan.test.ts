@@ -68,6 +68,11 @@ describe('catalogul de alimente si retete', () => {
       expect.arrayContaining(['chicken_breast', 'eggs']),
     );
     expect(searchFoods('xyz')).toEqual([]);
+    // Cautare in rusa
+    expect(searchFoods('яйцо').map((f) => f.id)).toEqual(
+      expect.arrayContaining(['eggs', 'quail_egg', 'duck_egg', 'goose_egg']),
+    );
+    expect(searchFoods('творог')[0].id).toBe('cottage_cheese');
   });
 
   it('are suficiente retete pentru fiecare dieta si pentru restrictiile principale', () => {
