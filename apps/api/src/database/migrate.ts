@@ -4,6 +4,7 @@ import pg from 'pg';
 import { APP_DB_ROLE, dbConfig } from '../config.js';
 
 const MIGRATIONS_DIR = resolve(import.meta.dirname, '../../migrations');
+const MIGRATION_LOCK = 724_001;
 
 /**
  * Creeaza rolul aplicatiei (daca lipseste) si aplica, in ordine, migrarile SQL noi.
@@ -14,6 +15,8 @@ export async function migrate(log: (msg: string) => void = console.log): Promise
   const client = new pg.Client(owner);
   await client.connect();
   try {
+    // O singura migrare la un moment dat (de exemplu doua instante ale serverului sau teste paralele).
+    await client.query('select pg_advisory_lock($1)', [MIGRATION_LOCK]);
     await client.query(
       `do $$ begin
          if not exists (select from pg_roles where rolname = '${APP_DB_ROLE}') then
