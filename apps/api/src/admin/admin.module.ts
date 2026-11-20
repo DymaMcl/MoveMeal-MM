@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Module,
   Param,
   ParseUUIDPipe,
@@ -11,11 +13,22 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import { AuthGuard, Roles, UserId } from '../auth/auth.guard.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { ROLES, type Role } from '../auth/auth.service.js';
-import { AdminService } from './admin.service.js';
+import { SocialModule } from '../social/social.module.js';
+import { AdminService, type Audience, type ModerationFilter } from './admin.service.js';
 
 export class UsersQueryDto {
   @IsOptional()
@@ -26,6 +39,10 @@ export class UsersQueryDto {
   @IsOptional()
   @IsIn(ROLES)
   role?: Role;
+
+  @IsOptional()
+  @IsIn(['active', 'blocked'])
+  status?: 'active' | 'blocked';
 
   @IsOptional()
   @Type(() => Number)
@@ -39,7 +56,7 @@ export class RoleDto {
   role!: Role;
 }
 
-export class BlockDto {
+export class ReasonDto {
   @IsString()
   @MinLength(3)
   @MaxLength(300)
@@ -47,21 +64,89 @@ export class BlockDto {
 }
 
 export class SettingsDto {
+  @IsOptional()
   @IsInt()
   @Min(0)
   @Max(365)
-  freeConsultationDays!: number;
+  freeConsultationDays?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(500)
+  aiChatDaily?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  aiPhotoDaily?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  communityEnabled?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  communityPremoderation?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  postsDaily?: number;
 }
 
-export class PageDto {
+export class LogQueryDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(0)
   page?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  action?: string;
 }
 
-/** Panoul administratorului: doar conturile cu rolul „admin”. */
+export class ModerationQueryDto {
+  @IsOptional()
+  @IsIn(['pending', 'reported', 'removed', 'all'])
+  filter?: ModerationFilter;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  cursor?: string;
+}
+
+export class ArticleChangeDto {
+  @IsOptional()
+  @IsBoolean()
+  pinned?: boolean;
+
+  @IsOptional()
+  @IsIn(['draft', 'published', 'archived'])
+  status?: 'draft' | 'published' | 'archived';
+}
+
+export class AnnouncementDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(80)
+  title!: string;
+
+  @IsString()
+  @MinLength(3)
+  @MaxLength(500)
+  body!: string;
+
+  @IsIn(['all', 'user', 'nutritionist'])
+  audience!: Audience;
+}
+
+/** Panoul administratorului: doar conturile cu rolul „admin” (verificat la fiecare cerere). */
 @Controller('admin')
 @UseGuards(AuthGuard)
 @Roles('admin')
@@ -73,9 +158,16 @@ export class AdminController {
     return this.admin.stats();
   }
 
+  // ------------------------------------------------------------- conturi
+
   @Get('users')
   users(@Query() query: UsersQueryDto) {
     return this.admin.users(query);
+  }
+
+  @Get('users/:id')
+  user(@Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.userDetail(id);
   }
 
   @Put('users/:id/role')
@@ -88,7 +180,11 @@ export class AdminController {
   }
 
   @Post('users/:id/block')
-  block(@UserId() adminId: string, @Param('id', ParseUUIDPipe) id: string, @Body() body: BlockDto) {
+  block(
+    @UserId() adminId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ReasonDto,
+  ) {
     return this.admin.block(adminId, id, body.reason);
   }
 
@@ -97,9 +193,79 @@ export class AdminController {
     return this.admin.unblock(adminId, id);
   }
 
+  @Post('users/:id/logout')
+  logout(@UserId() adminId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.logoutEverywhere(adminId, id);
+  }
+
+  @Post('users/:id/unlock')
+  unlock(@UserId() adminId: string, @Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.unlockLogin(adminId, id);
+  }
+
+  // ------------------------------------------------------------- moderare
+
+  @Get('moderation')
+  moderation(@Query() query: ModerationQueryDto) {
+    return this.admin.moderationQueue(query.filter ?? 'pending', query.cursor);
+  }
+
+  @Post('posts/:id/approve')
+  @HttpCode(204)
+  async approve(@UserId() adminId: string, @Param('id', ParseUUIDPipe) id: string) {
+    await this.admin.approvePost(adminId, id);
+  }
+
+  @Post('posts/:id/remove')
+  @HttpCode(204)
+  async removePost(
+    @UserId() adminId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ReasonDto,
+  ) {
+    await this.admin.removePost(adminId, id, body.reason);
+  }
+
+  @Post('posts/:id/dismiss')
+  @HttpCode(204)
+  async dismiss(@UserId() adminId: string, @Param('id', ParseUUIDPipe) id: string) {
+    await this.admin.dismissReports(adminId, id);
+  }
+
+  @Delete('posts/:id')
+  @HttpCode(204)
+  async deletePost(@UserId() adminId: string, @Param('id', ParseUUIDPipe) id: string) {
+    await this.admin.deletePost(adminId, id);
+  }
+
+  // ------------------------------------------------------------- blog
+
+  @Put('articles/:id')
+  @HttpCode(204)
+  async article(
+    @UserId() adminId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: ArticleChangeDto,
+  ) {
+    await this.admin.moderateArticle(adminId, id, body);
+  }
+
+  @Delete('articles/:id')
+  @HttpCode(204)
+  async deleteArticle(@UserId() adminId: string, @Param('id', ParseUUIDPipe) id: string) {
+    await this.admin.deleteArticle(adminId, id);
+  }
+
+  // ------------------------------------------------------------- anunturi, jurnal, parametri
+
+  @Post('announcements')
+  announce(@UserId() adminId: string, @Body() body: AnnouncementDto) {
+    return this.admin.announce(adminId, body.title, body.body, body.audience);
+  }
+
   @Get('log')
-  log(@Query() query: PageDto) {
-    return this.admin.auditLog(query.page);
+  log(@Query() query: LogQueryDto) {
+    return this.admin.auditLog(query.page, query.action);
   }
 
   @Get('settings')
@@ -114,7 +280,7 @@ export class AdminController {
 }
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, SocialModule],
   controllers: [AdminController],
   providers: [AdminService],
 })

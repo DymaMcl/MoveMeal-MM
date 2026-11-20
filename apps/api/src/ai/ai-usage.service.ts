@@ -1,17 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { DatabaseService } from '../database/database.service.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { aiError } from './gemini.service.js';
 
 export type AiKind = 'chat' | 'photo';
 
-/** Cererile AI permise unui utilizator in ultimele 24 de ore (controlul costurilor). */
+/**
+ * Cererile AI permise implicit unui utilizator in ultimele 24 de ore (controlul costurilor).
+ * Administratorul le poate modifica din aplicatie.
+ */
 export const AI_DAILY_LIMITS: Record<AiKind, number> = { chat: 60, photo: 15 };
 
 @Injectable()
 export class AiUsageService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly settings: SettingsService,
+  ) {}
+
+  async limits(): Promise<Record<AiKind, number>> {
+    const s = await this.settings.get();
+    return { chat: s.aiChatDaily, photo: s.aiPhotoDaily };
+  }
 
   async remaining(userId: string): Promise<Record<AiKind, number>> {
+    const limits = await this.limits();
     return this.db.asUser(userId, async (c) => {
       const { rows } = await c.query<{ kind: AiKind; n: number }>(
         `select kind, count(*)::int as n from ai_usage
@@ -20,8 +33,8 @@ export class AiUsageService {
       );
       const used = (kind: AiKind) => rows.find((r) => r.kind === kind)?.n ?? 0;
       return {
-        chat: Math.max(0, AI_DAILY_LIMITS.chat - used('chat')),
-        photo: Math.max(0, AI_DAILY_LIMITS.photo - used('photo')),
+        chat: Math.max(0, limits.chat - used('chat')),
+        photo: Math.max(0, limits.photo - used('photo')),
       };
     });
   }
@@ -31,13 +44,14 @@ export class AiUsageService {
    * Returneaza functia care anuleaza inregistrarea (cand serviciul AI nu a raspuns).
    */
   async consume(userId: string, kind: AiKind): Promise<() => Promise<void>> {
+    const limit = (await this.limits())[kind];
     const id = await this.db.asUser(userId, async (c) => {
       const { rows } = await c.query<{ n: number }>(
         `select count(*)::int as n from ai_usage
          where user_id = app_user_id() and kind = $1 and created_at > now() - interval '24 hours'`,
         [kind],
       );
-      if (rows[0].n >= AI_DAILY_LIMITS[kind]) {
+      if (rows[0].n >= limit) {
         throw aiError(429, 'ai_limit', 'Ai atins limita zilnica de cereri AI.');
       }
       const inserted = await c.query<{ id: string }>(

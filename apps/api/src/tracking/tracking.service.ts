@@ -9,6 +9,7 @@ import type pg from 'pg';
 import { addDaysIso, isEditableDay, todayIso } from '../common/dates.js';
 import { DatabaseService } from '../database/database.service.js';
 import { ProfileService } from '../profile/profile.service.js';
+import { refreshGoalProgress } from '../social/goal-progress.js';
 
 /** Se poate propune (si accepta) cel mult o ajustare la 14 zile. */
 const ADJUSTMENT_INTERVAL_DAYS = 14;
@@ -27,15 +28,17 @@ export class TrackingService {
       throw new BadRequestException('Se pot inregistra doar ultimele 14 zile.');
     }
     // O zi are o singura valoare, care poate fi corectata.
-    await this.db.asUser(userId, (c) =>
-      c.query(
+    await this.db.asUser(userId, async (c) => {
+      await c.query(
         `insert into body_measurements (user_id, day, weight_kg, waist_cm)
          values (app_user_id(), $1, $2, $3)
          on conflict (user_id, day) do update set
            weight_kg = excluded.weight_kg, waist_cm = excluded.waist_cm`,
         [day, weightKg, waistCm ?? null],
-      ),
-    );
+      );
+      // Progresul spre obiectiv din profilul public.
+      await refreshGoalProgress(c);
+    });
   }
 
   async measurements(userId: string, weeks: number) {

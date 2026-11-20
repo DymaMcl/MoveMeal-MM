@@ -9,7 +9,10 @@ export type NotificationKind =
   | 'appointment_cancelled'
   | 'plan_adjusted'
   | 'access_granted'
-  | 'access_revoked';
+  | 'access_revoked'
+  | 'post_approved'
+  | 'post_removed'
+  | 'announcement';
 
 export interface NotificationItem {
   id: string;
