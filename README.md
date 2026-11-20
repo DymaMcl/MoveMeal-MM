@@ -86,6 +86,24 @@ GEMINI_API_KEY=cheia-ta
 - Pe nivelul gratuit, Google poate folosi datele trimise pentru a-și îmbunătăți produsele; pe nivelul
   plătit, nu.
 
+## Adăugarea rapidă în jurnal
+
+- **Cod de bare**: camera telefonului citește codul (EAN-13, EAN-8, UPC), iar serverul caută produsul în
+  [Open Food Facts](https://world.openfoodfacts.org) (bază de date deschisă, licența ODbL). Produsul găsit
+  se păstrează în tabela `products`, ca următoarea scanare să nu mai depindă de serviciul extern; codurile
+  negăsite nu se cer din nou timp de o oră. Codul se poate introduce și manual.
+- **Produse proprii**: un produs negăsit se adaugă cu valorile de pe etichetă; tabelul nutrițional poate fi
+  citit de AI dintr-o fotografie, iar utilizatorul verifică valorile înainte de salvare. Produsele proprii
+  sunt vizibile doar autorului (Row Level Security), iar valorile din jurnal se calculează pe server.
+- **Descrie masa**: utilizatorul scrie sau dictează (cu microfonul tastaturii) ce a mâncat, iar Gemini
+  împarte descrierea în alimente cu gramaje; rezultatul se verifică și se corectează ca la fotografie.
+- **Mesele mele**: alimentele unei mese din jurnal se salvează și se adaugă apoi dintr-o atingere.
+- **Copiere**: o masă din ziua precedentă, o masă în ziua de azi sau toată ziua de ieri.
+- **Calorii rapide**: doar numărul de calorii (de exemplu la restaurant), cu macronutrienți opționali.
+- **Închide ziua**: bilanțul față de necesarul zilnic și prognoza „dacă fiecare zi ar fi ca azi”, pe 5
+  săptămâni (7700 kcal ≈ 1 kg). Sub minimul sigur (1200/1500 kcal) prognoza nu se afișează, iar aplicația
+  explică riscurile unei restricții prea mari.
+
 ## Comunitate, blog și profil
 
 - **Comunitate** (tab separat): fotografii cu mese și activități sportive, ca idei pentru ceilalți;
@@ -153,6 +171,9 @@ npm run typecheck                                            # verificarea tipur
 - [x] Greutatea și apa; pagina „Progres” cu media pe 7 zile (4, 8, 12 săptămâni)
 - [x] Ajustarea automată a țintei calorice (minimum 6 cântăriri, jurnal în 10 din 14 zile, ±5%)
 - [x] Fotografierea mesei: Gemini recunoaște alimentele și estimează gramajul; utilizatorul corectează și salvează în jurnal
+- [x] Cod de bare (Open Food Facts), produse proprii cu citirea etichetei de către AI
+- [x] Descrierea mesei în cuvinte, mesele salvate, copierea mesei sau a zilei, calorii rapide
+- [x] „Închide ziua”: bilanțul zilei și prognoza greutății pe 5 săptămâni
 - [ ] Înregistrarea seriilor (greutate, repetări), cronometrul de pauză și recordurile personale
 - [x] Roluri: utilizator, nutriționist, administrator (verificate pe server la fiecare cerere)
 - [x] Meniul cu 3 linii (dreapta sus) cu toate paginile, în funcție de rol
@@ -169,4 +190,4 @@ npm run typecheck                                            # verificarea tipur
 - [x] Profil public: album, salvate, procentul atins din obiectiv
 - [ ] Notificări push și raportul săptămânal
 - [ ] Site web separat pentru panourile de administrare și al nutriționistului
-- [ ] Catalogul complet: 150 de exerciții, 200 de rețete, import din Open Food Facts
+- [ ] Catalogul complet: 150 de exerciții, 200 de rețete
