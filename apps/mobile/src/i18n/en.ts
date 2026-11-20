@@ -483,6 +483,20 @@ export const en: Dictionary = {
     cancel: 'Cancel',
     per100: 'per 100 g',
   },
+  server: {
+    title: 'Server connection',
+    link: 'Server connection settings',
+    hint: 'The address of the computer running the MoveMeal server (for example 192.168.1.10). The phone must be on the same Wi-Fi network.',
+    address: 'Server address',
+    invalid: 'The address is not valid.',
+    test: 'Test',
+    checking: 'Checking the connection…',
+    ok: 'The server is responding.',
+    failed:
+      'The server is not responding. Check the address, the Wi-Fi network and that the server is running.',
+    reset: 'Use the default address',
+    current: 'Address in use: {url}',
+  },
   quick: {
     openSettings: 'Open settings',
     quickTag: 'entered manually',

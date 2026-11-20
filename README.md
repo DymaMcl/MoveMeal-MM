@@ -49,6 +49,34 @@ Adresa poate fi schimbată cu variabila `EXPO_PUBLIC_API_URL`.
 Părțile pot fi pornite și separat: `npm run api`, `npm run mobile`,
 `npm run db:migrate --workspace=@movemeal/api`.
 
+## Aplicația instalabilă pentru Android (APK)
+
+APK-ul se instalează pe telefon ca o aplicație obișnuită (fără Expo Go). Datele vin de la serverul
+pornit pe calculator, deci telefonul trebuie să fie în aceeași rețea Wi-Fi. Dacă adresa calculatorului
+se schimbă, ea se modifică direct în aplicație: „Setările conexiunii la server” (pe ecranul de
+autentificare) sau Setări → „Conexiunea la server”.
+
+Construirea pe Windows (necesită Android Studio, adică SDK-ul Android și Java):
+
+1. O singură dată, într-un PowerShell deschis ca administrator, se permit căile lungi (compilarea
+   nativă depășește limita de 260 de caractere):
+   `New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force`
+2. Se instalează CMake 3.31.6 (din Android Studio → SDK Manager → SDK Tools, sau
+   `sdkmanager "cmake;3.31.6"`), care include ninja 1.12 cu suport pentru căi lungi.
+3. Se generează proiectul nativ: `cd apps/mobile && npx expo prebuild --platform android`.
+4. În `apps/mobile/android/local.properties` se adaugă calea CMake:
+   `cmake.dir=C\:/Users/<utilizator>/AppData/Local/Android/Sdk/cmake/3.31.6`.
+5. Se compilează (adresa implicită a serverului este IP-ul calculatorului în rețeaua Wi-Fi):
+
+```bash
+cd apps/mobile/android
+JAVA_HOME="C:/Program Files/Android/Android Studio/jbr" \
+EXPO_PUBLIC_API_URL="http://<IP-calculator>:3000/api" \
+./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64
+```
+
+Rezultatul: `apps/mobile/android/app/build/outputs/apk/release/app-release.apk`.
+
 ## Roluri
 
 Orice cont nou are rolul „utilizator”. Primul administrator se stabilește din linia de comandă

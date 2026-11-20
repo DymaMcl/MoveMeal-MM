@@ -1,18 +1,30 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getApiUrl } from '@/api/client';
 import { ScreenHeader } from '@/components/app-menu';
+import { ServerSettingsSheet } from '@/components/server-settings';
 import { Button, Card, Segmented } from '@/components/ui';
 import { LANGUAGES, useI18n, type Language } from '@/i18n';
 import { useAppState } from '@/state/app-state';
-import { ACCENT_SWATCH, ACCENTS, useStyles, useThemeSettings, type ThemeMode } from '@/theme';
+import {
+  ACCENT_SWATCH,
+  ACCENTS,
+  useStyles,
+  useTheme,
+  useThemeSettings,
+  type ThemeMode,
+} from '@/theme';
 
 /** Setarile: tema, limba si iesirea din cont (accesibile si din meniul cu 3 linii). */
 export default function Settings() {
   const { t, language, setLanguage } = useI18n();
   const { mode, setMode, accent, setAccent } = useThemeSettings();
   const { session, signOut } = useAppState();
+  const [serverOpen, setServerOpen] = useState(false);
+  const theme = useTheme();
   const s = useStyles((th) => ({
     safe: { flex: 1, backgroundColor: th.colors.background },
     content: { padding: th.spacing.lg, gap: th.spacing.md, paddingBottom: th.spacing.xl },
@@ -110,6 +122,19 @@ export default function Settings() {
           </View>
         </Card>
 
+        <Card title={t('server.title')} icon="server-outline">
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setServerOpen(true)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
+          >
+            <Text style={[s.value, { flex: 1, textAlign: 'left' }]} numberOfLines={1}>
+              {getApiUrl()}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+          </Pressable>
+        </Card>
+
         <Button
           title={t('more.logout')}
           icon="log-out-outline"
@@ -120,6 +145,7 @@ export default function Settings() {
           }}
         />
       </ScrollView>
+      <ServerSettingsSheet visible={serverOpen} onClose={() => setServerOpen(false)} />
     </SafeAreaView>
   );
 }

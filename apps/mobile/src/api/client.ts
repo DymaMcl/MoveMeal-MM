@@ -25,7 +25,52 @@ function resolveBaseUrl(): string {
   return `http://${host}:3000/api`;
 }
 
-export const API_URL = resolveBaseUrl();
+/** Adresa implicita (din configurarea aplicatiei sau serverul de dezvoltare). */
+export const DEFAULT_API_URL = resolveBaseUrl();
+
+/**
+ * Adresa folosita acum. Poate fi schimbata din aplicatie (de exemplu cand calculatorul cu serverul
+ * primeste alt IP in alta retea Wi-Fi), fara o versiune noua a aplicatiei.
+ */
+let apiUrl = DEFAULT_API_URL;
+
+export const getApiUrl = () => apiUrl;
+
+export function setApiUrl(url: string | null): void {
+  apiUrl = url ?? DEFAULT_API_URL;
+}
+
+/**
+ * Transforma ce scrie utilizatorul („192.168.1.5”, „192.168.1.5:3000”, „https://api.exemplu.md”)
+ * in adresa completa a serverului. null = adresa nu este valida.
+ */
+export function normalizeApiUrl(input: string): string | null {
+  // Fara clasa URL: in React Native nu are toate proprietatile pe Android.
+  const match = /^(?:(https?):\/\/)?([a-z0-9.-]+)(?::(\d{1,5}))?(\/[^\s?#]*)?$/i.exec(input.trim());
+  if (!match) return null;
+  const [, scheme = 'http', host, explicitPort, rawPath = ''] = match;
+  if (!host || host.startsWith('.') || host.endsWith('.')) return null;
+  // Fara port explicit, la o adresa locala se foloseste portul serverului de dezvoltare.
+  const local = /^(\d{1,3}\.){3}\d{1,3}$|^localhost$/i.test(host);
+  const port = explicitPort ?? (local ? '3000' : '');
+  if (port && Number(port) > 65535) return null;
+  const path = rawPath.replace(/\/+$/, '');
+  return `${scheme.toLowerCase()}://${host}${port ? `:${port}` : ''}${path.endsWith('/api') ? path : `${path}/api`}`;
+}
+
+/** Verifica daca la adresa data raspunde serverul MoveMeal. */
+export async function checkServer(url: string): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`${url}/health`, { signal: controller.signal });
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 export class ApiError extends Error {
   constructor(
@@ -47,7 +92,7 @@ async function request<T>(
 ): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    res = await fetch(`${apiUrl}${path}`, {
       method: options.method ?? 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -809,7 +854,7 @@ export interface WorkoutLogEntry {
 // ------------------------------------------------------------------ comunitate si blog
 
 /** Adresa unei fotografii salvate pe server (se cere cu antetul Authorization). */
-export const mediaUrl = (id: string) => `${API_URL}/media/${id}`;
+export const mediaUrl = (id: string) => `${apiUrl}/media/${id}`;
 
 export interface Page<T> {
   items: T[];

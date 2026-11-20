@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from 'react';
 import { calculateEnergyPlan, type EnergyPlan, type EnergyProfile } from '@movemeal/shared';
-import { api, ApiError, type ProfileResponse, type Role } from '@/api/client';
+import { api, ApiError, setApiUrl, type ProfileResponse, type Role } from '@/api/client';
 
 /**
  * Starea aplicatiei. Contul si profilul sunt pastrate pe server; pe telefon raman
@@ -43,6 +43,9 @@ const KEYS = {
   profile: 'movemeal.profile',
   role: 'movemeal.role',
 } as const;
+
+/** Adresa serverului aleasa de utilizator (ramane si dupa iesirea din cont). */
+export const SERVER_URL_KEY = 'movemeal.serverUrl';
 
 const isRole = (value: unknown): value is Role =>
   value === 'user' || value === 'nutritionist' || value === 'admin';
@@ -133,6 +136,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   // La pornire: sesiunea salvata + copia profilului, apoi sincronizare cu serverul.
   useEffect(() => {
     (async () => {
+      // Adresa serverului se aplica inaintea oricarei cereri.
+      const serverUrl = await AsyncStorage.getItem(SERVER_URL_KEY).catch(() => null);
+      if (serverUrl) setApiUrl(serverUrl);
       const [token, email, cached, storedRole] = await Promise.all([
         SecureStore.getItemAsync(KEYS.token),
         AsyncStorage.getItem(KEYS.email),

@@ -13,6 +13,7 @@
     },
     "android": {
       "package": "md.movemeal.app",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E8F5EE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -39,6 +40,14 @@
           "cameraPermission": "MoveMeal folosește camera pentru a scana codul de bare al produselor și a fotografia masa.",
           "microphonePermission": false,
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
         }
       ]
     ]

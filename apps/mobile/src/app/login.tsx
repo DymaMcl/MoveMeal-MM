@@ -1,10 +1,14 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { ApiError } from '@/api/client';
+import { Pressable, Text } from 'react-native';
+import { ApiError, isNetworkError } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { Button, Field, Notice, Screen, Subtitle, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
+import { ServerSettingsSheet } from '@/components/server-settings';
 import { useAppState } from '@/state/app-state';
+import { useTheme } from '@/theme';
 import { isValidEmail, MIN_PASSWORD_LENGTH } from '@/state/validation';
 
 export default function Login() {
@@ -15,6 +19,9 @@ export default function Login() {
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [networkFailed, setNetworkFailed] = useState(false);
+  const [serverOpen, setServerOpen] = useState(false);
+  const theme = useTheme();
 
   const emailError = submitted && !isValidEmail(email) ? t('auth.errors.email') : null;
   const passwordError =
@@ -23,6 +30,7 @@ export default function Login() {
   async function onSubmit() {
     setSubmitted(true);
     setServerError(null);
+    setNetworkFailed(false);
     if (!isValidEmail(email) || password.length < MIN_PASSWORD_LENGTH) return;
     setBusy(true);
     try {
@@ -30,6 +38,7 @@ export default function Login() {
       router.replace('/');
     } catch (error) {
       const key = errorKey(error);
+      setNetworkFailed(isNetworkError(error));
       const reason = error instanceof ApiError ? String(error.data.reason ?? '') : '';
       setServerError(key === 'errors.blocked' && reason ? `${t(key)} ${reason}` : t(key));
     } finally {
@@ -72,6 +81,32 @@ export default function Login() {
         error={passwordError}
       />
       {serverError ? <Notice>{serverError}</Notice> : null}
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => setServerOpen(true)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: 6,
+          alignSelf: 'flex-start',
+          paddingVertical: 6,
+        }}
+      >
+        <Ionicons
+          name="server-outline"
+          size={18}
+          color={networkFailed ? theme.colors.primary : theme.colors.textMuted}
+        />
+        <Text
+          style={{
+            color: networkFailed ? theme.colors.primary : theme.colors.textMuted,
+            fontWeight: networkFailed ? '800' : '600',
+          }}
+        >
+          {t('server.link')}
+        </Text>
+      </Pressable>
+      <ServerSettingsSheet visible={serverOpen} onClose={() => setServerOpen(false)} />
     </Screen>
   );
 }
