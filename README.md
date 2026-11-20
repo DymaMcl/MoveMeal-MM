@@ -71,16 +71,53 @@ GEMINI_API_KEY=cheia-ta
 ```
 
 - Cheia rămâne pe server; aplicația mobilă nu o cunoaște.
-- Modelele implicite sunt `gemini-3.5-flash-lite` (chat) și `gemini-3.8-flash` (fotografii); se pot
-  schimba cu `GEMINI_CHAT_MODEL` și `GEMINI_VISION_MODEL`.
+- Modelele implicite sunt `gemini-3.5-flash-lite` (chat) și `gemini-3.5-flash` (fotografii); se pot
+  schimba cu `GEMINI_CHAT_MODEL` și `GEMINI_VISION_MODEL`. Dacă modelul principal nu răspunde în
+  câteva secunde, serverul pornește în paralel modelul de rezervă și folosește primul răspuns valid.
 - Modelului i se trimit doar prenumele, datele din profil, ținta și jurnalul zilei (fără e-mail).
-  Fotografia este micșorată pe telefon și nu se salvează pe server; se păstrează doar alimentele
-  recunoscute, iar valorile din jurnal sunt calculate pe server.
-- Limită zilnică pe utilizator: 60 de întrebări și 15 fotografii.
+  Fotografia mesei este micșorată pe telefon și nu se salvează pe server (decât dacă utilizatorul o
+  publică); se păstrează doar alimentele recunoscute, iar valorile din jurnal sunt calculate pe server.
+- Utilizatorul poate descrie masa în câteva cuvinte, poate corecta un aliment recunoscut greșit (din
+  catalog sau după denumire, cu valorile estimate de AI) și poate adăuga alimente lipsă.
+- Limita zilnică pe utilizator (implicit 60 de întrebări și 15 fotografii) se modifică din panoul
+  administratorului.
 - Fără cheie (sau dacă Gemini nu răspunde), asistentul folosește răspunsurile din regulile aplicației,
   iar fotografierea mesei trimite la adăugarea manuală.
 - Pe nivelul gratuit, Google poate folosi datele trimise pentru a-și îmbunătăți produsele; pe nivelul
   plătit, nu.
+
+## Comunitate, blog și profil
+
+- **Comunitate** (tab separat): fotografii cu mese și activități sportive, ca idei pentru ceilalți;
+  aprecieri, salvări și raportări. Fiecare postare poate fi privată (doar în albumul propriu) sau
+  publică (și în comunitate).
+- **Verificarea automată (Gemini)**: înainte de salvare, fotografia este verificată pentru conținut
+  pentru adulți, violență, droguri sau text jignitor; în comunitate se acceptă doar imagini legate de
+  alimentație și sport. Dacă serviciul AI nu răspunde, postarea publică așteaptă aprobarea unui
+  administrator. După 3 raportări, postarea dispare automat din comunitate până la verificare.
+- **Profilul**: fotografie, nume afișat, descriere, albumul, „Salvate” (postări și articole) și
+  procentul atins din obiectiv (slăbire/creștere: din greutate; menținere/masă musculară: din jurnal
+  și antrenamente). Ceilalți văd doar procentul, fără date de sănătate, și doar dacă utilizatorul
+  permite.
+- **Blog**: articole scrise de nutriționiști și administratori (ciornă, publicare, copertă,
+  categorii, căutare). Cititorii apreciază și salvează articolele; fiecare articol arată numărul de
+  persoane care l-au citit (fiecare cititor este numărat o singură dată, fără să se afișeze cine).
+- Fotografiile se păstrează în PostgreSQL (tabela `media`) și sunt servite doar prin
+  `GET /api/media/:id`, cu verificarea accesului prin Row Level Security.
+
+## Panoul administratorului
+
+- Tablou de bord: conturi (noi, active, blocate), activitatea pe 14 zile, comunitate, verificarea
+  automată, utilizarea AI, blogul (cele mai citite articole) și programările.
+- Conturi: căutare după nume sau e-mail, filtre după rol și stare, fișa contului (activitate fără date
+  de sănătate), schimbarea rolului, blocare cu motiv, deconectare de pe toate dispozitivele, deblocarea
+  autentificării.
+- Moderare: postări în așteptare, raportate și ascunse; aprobare, ascundere cu motiv (autorul primește
+  notificare), respingerea raportărilor, ștergere definitivă.
+- Blog: toate articolele, fixare sus, arhivare, republicare, modificare, ștergere.
+- Anunțuri: notificare trimisă tuturor conturilor sau doar utilizatorilor / nutriționiștilor.
+- Jurnalul acțiunilor (cu filtre) și parametrii: comunitate activă, verificare manuală, limitele de
+  postări și AI, oferta primei consultații.
 
 ## Teste
 
@@ -98,7 +135,7 @@ npm run typecheck                                            # verificarea tipur
 - [x] Chestionarul inițial: date personale, înălțime și greutate, obiectiv, greutate dorită, nivel de activitate
 - [x] Pagina „Acasă”: salut personalizat, obiectiv caloric, macronutrienți, recomandarea zilei
 - [x] Interfață în română, engleză și rusă (inclusiv catalogul de alimente, rețete și exerciții)
-- [x] Temă luminoasă și întunecată, alegere din setări
+- [x] Temă luminoasă și întunecată și culoarea interfeței (albastru, roz, roșu, verde), din setări
 - [x] Server NestJS: `GET /api/health`, `POST /api/energy/plan`
 - [x] Conturi și sesiuni pe server (parole scrypt, blocare după 5 încercări greșite)
 - [x] PostgreSQL cu Row Level Security: fiecare utilizator accesează doar datele proprii
@@ -123,11 +160,13 @@ npm run typecheck                                            # verificarea tipur
 - [x] Acordul de acces: nutriționistul vede planul și progresul doar cu acordul utilizatorului (RLS)
 - [x] Panoul nutriționistului în aplicație: solicitări (confirmare, respingere, reprogramare), program
       săptămânal și zile libere, clienți, ajustarea țintei și a planului („ajustat de nutriționist”), profil
-- [x] Panoul administratorului în aplicație: statistici, conturi, roluri, blocare cu motiv, jurnal, parametri
-- [x] Notificări în aplicație (programări, ajustări)
+- [x] Panoul administratorului în aplicație: tablou de bord, conturi, moderare, blog, anunțuri, jurnal, parametri
+- [x] Notificări în aplicație (programări, ajustări, moderare, anunțuri)
 - [x] Cântar ponderal: IMC (clasificarea OMS), greutate sănătoasă, grăsime estimată, metabolism bazal, talie
 - [x] Asistent (chat) cu Google Gemini, pe baza profilului și jurnalului zilei; fără AI răspunde din regulile aplicației
-- [ ] Blog
+- [x] Blog: articole ale nutriționiștilor și administratorilor, aprecieri, salvări, numărul de cititori
+- [x] Comunitate: postări cu mese și sport, verificare automată (AI), aprecieri, salvări, raportări
+- [x] Profil public: album, salvate, procentul atins din obiectiv
 - [ ] Notificări push și raportul săptămânal
 - [ ] Site web separat pentru panourile de administrare și al nutriționistului
 - [ ] Catalogul complet: 150 de exerciții, 200 de rețete, import din Open Food Facts
