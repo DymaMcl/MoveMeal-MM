@@ -140,6 +140,20 @@ export function AppMenuProvider({ children }: { children: ReactNode }) {
         path: '/food-photo',
       },
       {
+        key: 'community',
+        label: t('menu.community'),
+        icon: 'people-outline',
+        href: '/community',
+        path: '/community',
+      },
+      {
+        key: 'blog',
+        label: t('menu.blog'),
+        icon: 'newspaper-outline',
+        href: '/blog',
+        path: '/blog',
+      },
+      {
         key: 'progress',
         label: t('menu.progress'),
         icon: 'stats-chart-outline',

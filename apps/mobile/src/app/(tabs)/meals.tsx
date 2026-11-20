@@ -330,6 +330,28 @@ export default function Meals() {
             {t(`nutrition.issues.${issue}`)}
           </Notice>
         ))}
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.navigate('/community')}
+          style={({ pressed }) => [
+            {
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: theme.spacing.md,
+              padding: theme.spacing.md,
+              borderRadius: theme.radius.lg,
+              backgroundColor: theme.colors.primarySoft,
+            },
+            pressed && { opacity: 0.85 },
+          ]}
+        >
+          <Ionicons name="people" size={28} color={theme.colors.primary} />
+          <View style={{ flex: 1 }}>
+            <Text style={theme.font.heading}>{t('nutrition.communityIdeas')}</Text>
+            <Text style={theme.font.caption}>{t('nutrition.communityIdeasHint')}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={theme.colors.primary} />
+        </Pressable>
         <Notice tone="info">{t('common.disclaimer')}</Notice>
       </ScrollView>
     </SafeAreaView>

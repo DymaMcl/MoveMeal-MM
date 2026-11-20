@@ -21,10 +21,20 @@ const ICONS: Record<NotificationKind, IconName> = {
   plan_adjusted: 'nutrition-outline',
   access_granted: 'lock-open-outline',
   access_revoked: 'lock-closed-outline',
+  post_approved: 'checkmark-done-outline',
+  post_removed: 'eye-off-outline',
+  announcement: 'megaphone-outline',
 };
 
 /** Pagina deschisa la atingerea notificarii (nutritionistul ajunge in panoul sau). */
-function target(kind: NotificationKind, staff: boolean): Href {
+function target(n: NotificationItem, staff: boolean): Href | null {
+  const { kind } = n;
+  if (kind === 'announcement') return null;
+  if (kind === 'post_approved' || kind === 'post_removed') {
+    return typeof n.payload.postId === 'string'
+      ? { pathname: '/post/[id]', params: { id: n.payload.postId } }
+      : '/community';
+  }
   if (kind === 'plan_adjusted') return '/meals';
   if (staff && kind !== 'appointment_confirmed' && kind !== 'appointment_rejected') return '/panel';
   return '/nutritionist';
@@ -91,6 +101,7 @@ export default function Notifications() {
       nutritionistName: String(p.nutritionistName ?? ''),
       day: typeof p.day === 'string' ? formatDay(p.day, locale) : '',
       time: String(p.time ?? ''),
+      title: String(p.title ?? ''),
     });
   }
 
@@ -112,13 +123,24 @@ export default function Notifications() {
             key={n.id}
             accessibilityRole="button"
             style={({ pressed }) => [s.item, !n.read && s.unread, pressed && { opacity: 0.8 }]}
-            onPress={() => router.navigate(target(n.kind, staff))}
+            onPress={() => {
+              const href = target(n, staff);
+              if (href) router.navigate(href);
+            }}
           >
             <View style={s.icon}>
               <Ionicons name={ICONS[n.kind]} size={20} color={theme.colors.primary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={s.text}>{message(n)}</Text>
+              {n.kind === 'announcement' && typeof n.payload.body === 'string' ? (
+                <Text style={[s.text, { marginTop: 4 }]}>{n.payload.body}</Text>
+              ) : null}
+              {n.kind === 'post_removed' && typeof n.payload.reason === 'string' ? (
+                <Text style={s.note}>
+                  {t('notifications.reason')}: „{n.payload.reason}”
+                </Text>
+              ) : null}
               {typeof n.payload.note === 'string' && n.payload.note ? (
                 <Text style={s.note}>„{n.payload.note}”</Text>
               ) : null}

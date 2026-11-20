@@ -11,6 +11,7 @@ const TABS: { name: string; label: string; icon: IconName; iconActive: IconName 
   { name: 'workout', label: 'tabs.workout', icon: 'barbell-outline', iconActive: 'barbell' },
   { name: 'meals', label: 'tabs.meals', icon: 'restaurant-outline', iconActive: 'restaurant' },
   { name: 'calories', label: 'tabs.calories', icon: 'camera-outline', iconActive: 'camera' },
+  { name: 'community', label: 'tabs.community', icon: 'people-outline', iconActive: 'people' },
   { name: 'more', label: 'tabs.more', icon: 'grid-outline', iconActive: 'grid' },
 ];
 

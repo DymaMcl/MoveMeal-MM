@@ -14,6 +14,15 @@ export function errorKey(error: unknown): string {
       return 'errors.aiBlocked';
     case 'ai_limit':
       return 'errors.aiLimit';
+    case 'not_food':
+      return 'errors.notFood';
+    case 'posts_limit':
+      return 'errors.postsLimit';
+    case 'community_disabled':
+      return 'errors.communityDisabled';
+    case 'content_rejected':
+      // Motivul respingerii (de exemplu „adult”, „not_relevant”) are un mesaj propriu.
+      return `social.rejected.${String(error.data.reason ?? 'unsafe')}`;
   }
   switch (error.status) {
     case 0:
@@ -24,6 +33,8 @@ export function errorKey(error: unknown): string {
       return error.data.code === 'account_blocked' ? 'errors.blocked' : 'errors.forbidden';
     case 409:
       return 'errors.emailTaken';
+    case 404:
+      return 'errors.notFound';
     case 413:
       return 'errors.imageTooLarge';
     case 423:

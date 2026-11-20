@@ -1,7 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { roundNutrients, scaleNutrients, type Nutrients } from '@movemeal/shared';
-import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
-import * as ImagePicker from 'expo-image-picker';
+import {
+  foodName,
+  roundNutrients,
+  scaleNutrients,
+  searchFoods,
+  type Nutrients,
+} from '@movemeal/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -17,18 +21,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, type LogMeal, type PhotoAnalysis } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
+import { ActionSheet } from '@/components/social';
 import { useToast } from '@/components/toast';
 import { Button, Card, Notice, Segmented } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { isoDate } from '@/state/dates';
+import { pickImage, stashImage, type PickedImage } from '@/state/images';
 import { useNutrition } from '@/state/nutrition-state';
 import { useStyles, useTheme } from '@/theme';
 
-/** Latura maxima a imaginii trimise (suficient pentru recunoastere, sub ~300 KB). */
-const MAX_SIDE = 1280;
 const MAX_GRAMS = 2000;
 const STEP = 10;
+const MAX_ITEMS = 12;
 const MEALS: LogMeal[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 /** Masa probabila dupa ora curenta. */
@@ -41,12 +46,19 @@ function mealByHour(hour = new Date().getHours()): LogMeal {
 
 type Stage =
   | { kind: 'pick' }
-  | { kind: 'analyzing'; uri: string }
-  | { kind: 'result'; uri: string; analysis: PhotoAnalysis };
+  | { kind: 'analyzing' }
+  | { kind: 'result'; analysis: PhotoAnalysis }
+  | { kind: 'saved'; analysis: PhotoAnalysis; kcal: number };
 
 interface Choice {
   include: boolean;
   grams: number;
+}
+
+/** Ce se corecteaza: alimentul cu indexul dat sau un aliment nou (index = null). */
+interface Editing {
+  index: number | null;
+  text: string;
 }
 
 /** Recunoasterea alimentelor din fotografie (Google Gemini) si adaugarea lor in jurnal. */
@@ -62,8 +74,13 @@ export default function FoodPhoto() {
     params.meal && MEALS.includes(params.meal) ? params.meal : mealByHour(),
   );
   const [stage, setStage] = useState<Stage>({ kind: 'pick' });
+  const [photo, setPhoto] = useState<PickedImage | null>(null);
+  const [hint, setHint] = useState('');
   const [choices, setChoices] = useState<Choice[]>([]);
   const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const [editBusy, setEditBusy] = useState(false);
+  const [reanalyze, setReanalyze] = useState(false);
   /** null = se verifica; false = serviciul AI nu este configurat. */
   const [available, setAvailable] = useState<boolean | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -80,41 +97,35 @@ export default function FoodPhoto() {
       .catch(() => setAvailable(false));
   }, [token]);
 
-  async function pick(source: 'camera' | 'gallery') {
+  async function analyze(image: PickedImage, description: string) {
     if (!token) return;
-    let result: ImagePicker.ImagePickerResult;
-    if (source === 'camera') {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
-      if (!permission.granted) {
-        toast(t('photo.permissionCamera'));
-        return;
-      }
-      result = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.9 });
-    } else {
-      result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.9 });
-    }
-    if (result.canceled || !result.assets[0]) return;
-    const asset = result.assets[0];
-    setStage({ kind: 'analyzing', uri: asset.uri });
-
+    setStage({ kind: 'analyzing' });
     try {
-      // Imaginea se micsoreaza si se comprima pe telefon, apoi se trimite serverului.
-      const context = ImageManipulator.manipulate(asset.uri);
-      if (Math.max(asset.width, asset.height) > MAX_SIDE) {
-        context.resize(asset.width >= asset.height ? { width: MAX_SIDE } : { height: MAX_SIDE });
-      }
-      const image = await context.renderAsync();
-      const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.7, base64: true });
-      if (!saved.base64) throw new Error('base64');
-
-      const analysis = await api.ai.analyzePhoto(token, saved.base64, 'image/jpeg', language);
+      const analysis = await api.ai.analyzePhoto(
+        token,
+        image.base64,
+        'image/jpeg',
+        language,
+        description.trim() || undefined,
+      );
       setChoices(analysis.items.map((i) => ({ include: true, grams: i.grams })));
-      setStage({ kind: 'result', uri: saved.uri, analysis });
+      setStage({ kind: 'result', analysis });
       setRemaining((n) => (n === null ? n : Math.max(0, n - 1)));
     } catch (e) {
       toast(t(errorKey(e)));
       setStage({ kind: 'pick' });
     }
+  }
+
+  async function pick(source: 'camera' | 'gallery') {
+    const picked = await pickImage(source);
+    if (picked === 'denied') {
+      toast(t('photo.permissionCamera'));
+      return;
+    }
+    if (!picked) return;
+    setPhoto(picked);
+    await analyze(picked, hint);
   }
 
   const analysis = stage.kind === 'result' ? stage.analysis : null;
@@ -152,6 +163,34 @@ export default function FoodPhoto() {
     update(index, { grams: Math.min(MAX_GRAMS, Math.max(1, Math.round(grams))) });
   }
 
+  /** Corectarea unui aliment: din catalog (instant) sau dupa denumire (estimata de AI). */
+  async function applyEdit(change: { foodId?: string; name?: string }) {
+    if (!token || !analysis || !editing) return;
+    setEditBusy(true);
+    try {
+      const index = editing.index;
+      const grams = index === null ? 100 : choices[index]?.grams;
+      const next = await api.ai.editPhotoItem(token, analysis.id, {
+        ...(index === null ? {} : { index }),
+        ...change,
+        ...(grams ? { grams } : {}),
+        language,
+      });
+      setChoices((prev) =>
+        next.items.map((item, i) =>
+          i === index || i >= prev.length ? { include: true, grams: item.grams } : prev[i],
+        ),
+      );
+      setStage({ kind: 'result', analysis: next });
+      setEditing(null);
+      toast(t(index === null ? 'photo.itemAdded' : 'photo.itemCorrected'));
+    } catch (e) {
+      toast(t(errorKey(e)));
+    } finally {
+      setEditBusy(false);
+    }
+  }
+
   async function save() {
     if (!token || !analysis) return;
     const items = choices
@@ -167,7 +206,7 @@ export default function FoodPhoto() {
       await api.ai.logPhoto(token, analysis.id, { day, meal, items });
       await loadDay(day).catch(() => undefined);
       toast(t('photo.saved'));
-      router.back();
+      setStage({ kind: 'saved', analysis, kcal: Math.round(total.kcal) });
     } catch (e) {
       toast(t(errorKey(e)));
     } finally {
@@ -175,14 +214,15 @@ export default function FoodPhoto() {
     }
   }
 
+  const suggestions = useMemo(
+    () => (editing && editing.text.trim().length >= 2 ? searchFoods(editing.text).slice(0, 6) : []),
+    [editing],
+  );
+
   const s = useStyles((th) => ({
     safe: { flex: 1, backgroundColor: th.colors.background },
     content: { padding: th.spacing.lg, gap: th.spacing.md, paddingBottom: th.spacing.xl },
-    hero: {
-      alignItems: 'center',
-      gap: th.spacing.sm,
-      paddingVertical: th.spacing.lg,
-    },
+    hero: { alignItems: 'center', gap: th.spacing.sm, paddingVertical: th.spacing.md },
     heroIcon: {
       width: 84,
       height: 84,
@@ -195,6 +235,16 @@ export default function FoodPhoto() {
     caption: { ...th.font.caption, textAlign: 'center' },
     tip: { flexDirection: 'row', gap: th.spacing.sm, alignItems: 'flex-start' },
     tipText: { ...th.font.body, flex: 1, fontSize: 14 },
+    hint: {
+      minHeight: 48,
+      borderWidth: 1.5,
+      borderColor: th.colors.border,
+      borderRadius: th.radius.md,
+      paddingHorizontal: th.spacing.md,
+      paddingVertical: th.spacing.sm,
+      color: th.colors.text,
+      fontSize: 15,
+    },
     photo: {
       width: '100%',
       aspectRatio: 4 / 3,
@@ -210,7 +260,7 @@ export default function FoodPhoto() {
       gap: th.spacing.sm,
     },
     overlayText: { color: '#FFFFFF', fontWeight: '800', fontSize: 16 },
-    overlayHint: { color: '#FFFFFFCC', fontSize: 13 },
+    overlayHint: { color: '#FFFFFFCC', fontSize: 13, textAlign: 'center', paddingHorizontal: 24 },
     dish: { ...th.font.title, fontSize: 22 },
     totalRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6 },
     totalKcal: { fontSize: 34, fontWeight: '900', color: th.colors.primary },
@@ -256,6 +306,31 @@ export default function FoodPhoto() {
     },
     itemKcal: { ...th.font.body, fontWeight: '800', marginLeft: 'auto' },
     disabled: { opacity: 0.45 },
+    linkRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: th.spacing.sm,
+      paddingVertical: th.spacing.sm,
+    },
+    link: { ...th.font.body, color: th.colors.primary, fontWeight: '700', flex: 1 },
+    suggestion: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: th.spacing.sm,
+      minHeight: 48,
+      paddingHorizontal: th.spacing.sm,
+      borderRadius: th.radius.md,
+      backgroundColor: th.colors.surfaceAlt,
+    },
+    savedIcon: {
+      width: 84,
+      height: 84,
+      borderRadius: 42,
+      backgroundColor: th.colors.primarySoft,
+      alignItems: 'center',
+      justifyContent: 'center',
+      alignSelf: 'center',
+    },
   }));
 
   const pickButtons = (
@@ -267,6 +342,21 @@ export default function FoodPhoto() {
         variant="secondary"
         onPress={() => pick('gallery')}
       />
+    </View>
+  );
+
+  const hintInput = (
+    <View style={{ gap: 6 }}>
+      <Text style={[theme.font.body, { fontWeight: '700' }]}>{t('photo.hintLabel')}</Text>
+      <TextInput
+        style={s.hint}
+        value={hint}
+        onChangeText={setHint}
+        placeholder={t('photo.hintPlaceholder')}
+        placeholderTextColor={theme.colors.textMuted}
+        maxLength={200}
+      />
+      <Text style={[theme.font.caption, { fontSize: 12 }]}>{t('photo.hintHelp')}</Text>
     </View>
   );
 
@@ -296,13 +386,14 @@ export default function FoodPhoto() {
                   <Text style={s.caption}>{t('photo.remaining', { n: remaining })}</Text>
                 ) : null}
               </View>
+              {hintInput}
               {available === null ? (
                 <ActivityIndicator color={theme.colors.primary} />
               ) : (
                 pickButtons
               )}
               <Card title={t('photo.tipsTitle')} icon="bulb-outline">
-                {(['tip1', 'tip2', 'tip3'] as const).map((key) => (
+                {(['tip1', 'tip2', 'tip3', 'tip4'] as const).map((key) => (
                   <View key={key} style={s.tip}>
                     <Ionicons name="checkmark-circle" size={18} color={theme.colors.primary} />
                     <Text style={s.tipText}>{t(`photo.${key}`)}</Text>
@@ -313,9 +404,9 @@ export default function FoodPhoto() {
           )
         ) : null}
 
-        {stage.kind === 'analyzing' ? (
+        {stage.kind === 'analyzing' && photo ? (
           <View>
-            <Image source={{ uri: stage.uri }} style={s.photo} resizeMode="cover" />
+            <Image source={{ uri: photo.uri }} style={s.photo} resizeMode="cover" />
             <View style={s.overlay} accessibilityLiveRegion="polite">
               <ActivityIndicator size="large" color="#FFFFFF" />
               <Text style={s.overlayText}>{t('photo.analyzing')}</Text>
@@ -324,12 +415,60 @@ export default function FoodPhoto() {
           </View>
         ) : null}
 
+        {stage.kind === 'saved' ? (
+          <>
+            <View style={s.savedIcon}>
+              <Ionicons name="checkmark-done" size={44} color={theme.colors.primary} />
+            </View>
+            <Text style={[theme.font.title, { textAlign: 'center', fontSize: 22 }]}>
+              {t('photo.savedTitle', { kcal: stage.kcal })}
+            </Text>
+            <Text style={s.center}>{t('photo.shareHint')}</Text>
+            {photo ? (
+              <Image source={{ uri: photo.uri }} style={s.photo} resizeMode="cover" />
+            ) : null}
+            <Button
+              title={t('photo.share')}
+              icon="share-social-outline"
+              onPress={() =>
+                photo &&
+                router.replace({
+                  pathname: '/post/new',
+                  params: {
+                    imageKey: stashImage(photo),
+                    foodPhotoId: stage.analysis.id,
+                    dish: stage.analysis.dish,
+                    kcal: String(stage.kcal),
+                  },
+                })
+              }
+            />
+            <Button
+              title={t('photo.done')}
+              variant="secondary"
+              icon="checkmark"
+              onPress={() => router.back()}
+            />
+          </>
+        ) : null}
+
         {stage.kind === 'result' && analysis ? (
           <>
-            <Image source={{ uri: stage.uri }} style={s.photo} resizeMode="cover" />
+            {photo ? (
+              <Image source={{ uri: photo.uri }} style={s.photo} resizeMode="cover" />
+            ) : null}
             {!analysis.isFood ? (
               <>
                 <Notice>{t('photo.notFood')}</Notice>
+                {hintInput}
+                {photo ? (
+                  <Button
+                    title={t('photo.reanalyze')}
+                    icon="refresh"
+                    disabled={!hint.trim()}
+                    onPress={() => analyze(photo, hint)}
+                  />
+                ) : null}
                 {pickButtons}
               </>
             ) : (
@@ -349,11 +488,15 @@ export default function FoodPhoto() {
                 </Card>
 
                 <Card title={t('photo.found')} icon="restaurant-outline">
+                  <Text style={[theme.font.caption, { fontSize: 12 }]}>{t('photo.editHint')}</Text>
                   {analysis.items.map((item, i) => {
                     const choice = choices[i];
                     if (!choice) return null;
                     return (
-                      <View key={item.index} style={[s.item, !choice.include && s.disabled]}>
+                      <View
+                        key={`${item.index}-${item.name}`}
+                        style={[s.item, !choice.include && s.disabled]}
+                      >
                         <View style={s.itemHead}>
                           <Pressable
                             accessibilityRole="checkbox"
@@ -369,6 +512,18 @@ export default function FoodPhoto() {
                             />
                           </Pressable>
                           <Text style={s.itemName}>{item.name}</Text>
+                          <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel={t('photo.correct', { name: item.name })}
+                            hitSlop={8}
+                            onPress={() => setEditing({ index: i, text: '' })}
+                          >
+                            <Ionicons
+                              name="create-outline"
+                              size={22}
+                              color={theme.colors.primary}
+                            />
+                          </Pressable>
                         </View>
                         {item.foodId || item.confidence < 0.5 ? (
                           <View style={s.tags}>
@@ -439,7 +594,41 @@ export default function FoodPhoto() {
                       </View>
                     );
                   })}
+                  {analysis.items.length < MAX_ITEMS ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      style={s.linkRow}
+                      onPress={() => setEditing({ index: null, text: '' })}
+                    >
+                      <Ionicons name="add-circle-outline" size={22} color={theme.colors.primary} />
+                      <Text style={s.link}>{t('photo.addItem')}</Text>
+                    </Pressable>
+                  ) : null}
                 </Card>
+
+                {reanalyze && photo ? (
+                  <Card>
+                    {hintInput}
+                    <Button
+                      title={t('photo.reanalyze')}
+                      icon="refresh"
+                      disabled={!hint.trim()}
+                      onPress={() => {
+                        setReanalyze(false);
+                        analyze(photo, hint);
+                      }}
+                    />
+                  </Card>
+                ) : (
+                  <Pressable
+                    accessibilityRole="button"
+                    style={s.linkRow}
+                    onPress={() => setReanalyze(true)}
+                  >
+                    <Ionicons name="refresh-outline" size={20} color={theme.colors.primary} />
+                    <Text style={s.link}>{t('photo.wrongResult')}</Text>
+                  </Pressable>
+                )}
 
                 <Text style={theme.font.heading}>{t('photo.meal')}</Text>
                 <Segmented
@@ -466,6 +655,50 @@ export default function FoodPhoto() {
           </>
         ) : null}
       </ScrollView>
+
+      <ActionSheet
+        visible={editing !== null}
+        title={
+          editing?.index === null
+            ? t('photo.addItem')
+            : t('photo.correctTitle', { name: analysis?.items[editing?.index ?? 0]?.name ?? '' })
+        }
+        onClose={() => (editBusy ? undefined : setEditing(null))}
+      >
+        <Text style={theme.font.caption}>{t('photo.correctHint')}</Text>
+        <TextInput
+          style={s.hint}
+          value={editing?.text ?? ''}
+          onChangeText={(text) => setEditing((prev) => (prev ? { ...prev, text } : prev))}
+          placeholder={t('photo.correctPlaceholder')}
+          placeholderTextColor={theme.colors.textMuted}
+          maxLength={80}
+          autoFocus
+        />
+        {suggestions.map((f) => (
+          <Pressable
+            key={f.id}
+            accessibilityRole="button"
+            disabled={editBusy}
+            style={({ pressed }) => [s.suggestion, pressed && { opacity: 0.8 }]}
+            onPress={() => applyEdit({ foodId: f.id })}
+          >
+            <Ionicons name="book-outline" size={18} color={theme.colors.primary} />
+            <Text style={[theme.font.body, { flex: 1 }]}>{foodName(f, language)}</Text>
+            <Text style={theme.font.caption}>
+              {f.kcal} {t('common.kcal')}/100 {t('common.g')}
+            </Text>
+          </Pressable>
+        ))}
+        {editBusy ? <ActivityIndicator color={theme.colors.primary} /> : null}
+        <Button
+          title={t('photo.estimateAi')}
+          icon="sparkles-outline"
+          variant="secondary"
+          disabled={editBusy || (editing?.text.trim().length ?? 0) < 2}
+          onPress={() => editing && applyEdit({ name: editing.text.trim() })}
+        />
+      </ActionSheet>
     </SafeAreaView>
   );
 }

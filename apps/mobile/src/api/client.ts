@@ -291,12 +291,25 @@ export const api = {
       image: string,
       mimeType: 'image/jpeg',
       language: 'ro' | 'en' | 'ru',
+      hint?: string,
     ) =>
       request<PhotoAnalysis>('/me/food-photo', {
         method: 'POST',
-        body: { image, mimeType, language },
+        body: { image, mimeType, language, ...(hint ? { hint } : {}) },
         token,
       }),
+    /** Corecteaza alimentul cu indexul dat sau adauga unul nou (fara index). */
+    editPhotoItem: (
+      token: string,
+      id: string,
+      body: {
+        index?: number;
+        foodId?: string;
+        name?: string;
+        grams?: number;
+        language: 'ro' | 'en' | 'ru';
+      },
+    ) => request<PhotoAnalysis>(`/me/food-photo/${id}/items`, { method: 'POST', body, token }),
     logPhoto: (
       token: string,
       id: string,
@@ -350,27 +363,149 @@ export const api = {
       }),
   },
 
+  // Comunitatea (lenta), profilul public si salvatele
+  social: {
+    me: (token: string) => request<MySocial>('/me/social', { token }),
+    updateMe: (token: string, body: { displayName: string; bio: string; showProgress: boolean }) =>
+      request<SocialProfile>('/me/social', { method: 'PUT', body, token }),
+    setAvatar: (token: string, image: string, mimeType: 'image/jpeg') =>
+      request<SocialProfile>('/me/social/avatar', {
+        method: 'PUT',
+        body: { image, mimeType },
+        token,
+      }),
+    removeAvatar: (token: string) =>
+      request<SocialProfile>('/me/social/avatar', { method: 'DELETE', token }),
+    saved: (token: string) =>
+      request<{ posts: Post[]; articles: ArticleCard[] }>('/me/saved', { token }),
+    profile: (token: string, id: string) =>
+      request<SocialProfile>(`/users/${id}/profile`, { token }),
+    userPosts: (token: string, id: string, cursor?: string | null) =>
+      request<Page<Post>>(
+        `/users/${id}/posts${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        { token },
+      ),
+    feed: (token: string, kind?: PostKind | null, cursor?: string | null) => {
+      const params: string[] = [];
+      if (kind) params.push(`kind=${kind}`);
+      if (cursor) params.push(`cursor=${encodeURIComponent(cursor)}`);
+      return request<Page<Post>>(`/feed${params.length ? `?${params.join('&')}` : ''}`, { token });
+    },
+    createPost: (
+      token: string,
+      body: {
+        image: string;
+        mimeType: 'image/jpeg';
+        caption: string;
+        kind: PostKind;
+        visibility: Visibility;
+        foodPhotoId?: string;
+      },
+    ) => request<Post>('/posts', { method: 'POST', body, token }),
+    post: (token: string, id: string) => request<Post>(`/posts/${id}`, { token }),
+    updatePost: (token: string, id: string, body: { caption?: string; visibility?: Visibility }) =>
+      request<Post>(`/posts/${id}`, { method: 'PATCH', body, token }),
+    deletePost: (token: string, id: string) =>
+      request<void>(`/posts/${id}`, { method: 'DELETE', token }),
+    like: (token: string, id: string, value: boolean) =>
+      request<ToggleResult>(`/posts/${id}/like`, { method: 'PUT', body: { value }, token }),
+    save: (token: string, id: string, value: boolean) =>
+      request<ToggleResult>(`/posts/${id}/save`, { method: 'PUT', body: { value }, token }),
+    report: (token: string, id: string, reason: ReportReason, note?: string) =>
+      request<void>(`/posts/${id}/report`, { method: 'POST', body: { reason, note }, token }),
+  },
+
+  // Blogul
+  blog: {
+    list: (
+      token: string,
+      query: { category?: BlogCategory | null; q?: string; cursor?: string | null } = {},
+    ) => {
+      const params: string[] = [];
+      if (query.category) params.push(`category=${query.category}`);
+      if (query.q) params.push(`q=${encodeURIComponent(query.q)}`);
+      if (query.cursor) params.push(`cursor=${encodeURIComponent(query.cursor)}`);
+      return request<Page<ArticleCard> & { pinned: ArticleCard[] }>(
+        `/blog${params.length ? `?${params.join('&')}` : ''}`,
+        { token },
+      );
+    },
+    get: (token: string, id: string) => request<Article>(`/blog/${id}`, { token }),
+    like: (token: string, id: string, value: boolean) =>
+      request<ToggleResult>(`/blog/${id}/like`, { method: 'PUT', body: { value }, token }),
+    save: (token: string, id: string, value: boolean) =>
+      request<ToggleResult>(`/blog/${id}/save`, { method: 'PUT', body: { value }, token }),
+    authored: (token: string, cursor?: string | null) =>
+      request<Page<ArticleCard>>(
+        `/blog/authored${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        { token },
+      ),
+    editable: (token: string, id: string) => request<Article>(`/blog/authored/${id}`, { token }),
+    create: (token: string, body: ArticleInput) =>
+      request<Article>('/blog', { method: 'POST', body, token }),
+    update: (token: string, id: string, body: ArticleInput) =>
+      request<Article>(`/blog/${id}`, { method: 'PUT', body, token }),
+    remove: (token: string, id: string) =>
+      request<void>(`/blog/${id}`, { method: 'DELETE', token }),
+  },
+
   // Panoul administratorului
   admin: {
     stats: (token: string) => request<AdminStats>('/admin/stats', { token }),
-    users: (token: string, q: string, role?: Role, page = 0) => {
+    users: (token: string, q: string, role?: Role, page = 0, status?: 'active' | 'blocked') => {
       const params = [`page=${page}`];
       if (q) params.push(`q=${encodeURIComponent(q)}`);
       if (role) params.push(`role=${role}`);
+      if (status) params.push(`status=${status}`);
       return request<{ total: number; page: number; pageSize: number; items: AdminUser[] }>(
         `/admin/users?${params.join('&')}`,
         { token },
       );
     },
+    user: (token: string, id: string) => request<AdminUserDetail>(`/admin/users/${id}`, { token }),
     setRole: (token: string, id: string, role: Role) =>
       request<AdminUser>(`/admin/users/${id}/role`, { method: 'PUT', body: { role }, token }),
     block: (token: string, id: string, reason: string) =>
       request<AdminUser>(`/admin/users/${id}/block`, { method: 'POST', body: { reason }, token }),
     unblock: (token: string, id: string) =>
       request<AdminUser>(`/admin/users/${id}/unblock`, { method: 'POST', token }),
-    log: (token: string) => request<AdminLogEntry[]>('/admin/log', { token }),
+    logoutUser: (token: string, id: string) =>
+      request<{ closed: number }>(`/admin/users/${id}/logout`, { method: 'POST', token }),
+    unlockUser: (token: string, id: string) =>
+      request<AdminUser>(`/admin/users/${id}/unlock`, { method: 'POST', token }),
+    moderation: (token: string, filter: ModerationFilter, cursor?: string | null) =>
+      request<Page<ModerationItem>>(
+        `/admin/moderation?filter=${filter}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`,
+        { token },
+      ),
+    approvePost: (token: string, id: string) =>
+      request<void>(`/admin/posts/${id}/approve`, { method: 'POST', token }),
+    removePost: (token: string, id: string, reason: string) =>
+      request<void>(`/admin/posts/${id}/remove`, { method: 'POST', body: { reason }, token }),
+    dismissReports: (token: string, id: string) =>
+      request<void>(`/admin/posts/${id}/dismiss`, { method: 'POST', token }),
+    deletePost: (token: string, id: string) =>
+      request<void>(`/admin/posts/${id}`, { method: 'DELETE', token }),
+    articles: (token: string, cursor?: string | null) =>
+      request<Page<ArticleCard>>(
+        `/admin/articles${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        { token },
+      ),
+    changeArticle: (
+      token: string,
+      id: string,
+      body: { pinned?: boolean; status?: ArticleStatus },
+    ) => request<void>(`/admin/articles/${id}`, { method: 'PUT', body, token }),
+    deleteArticle: (token: string, id: string) =>
+      request<void>(`/admin/articles/${id}`, { method: 'DELETE', token }),
+    announce: (token: string, body: { title: string; body: string; audience: Audience }) =>
+      request<{ recipients: number }>('/admin/announcements', { method: 'POST', body, token }),
+    log: (token: string, action?: string, page = 0) =>
+      request<AdminLogEntry[]>(`/admin/log?page=${page}${action ? `&action=${action}` : ''}`, {
+        token,
+      }),
     settings: (token: string) => request<AdminSettings>('/admin/settings', { token }),
-    saveSettings: (token: string, body: AdminSettings) =>
+    saveSettings: (token: string, body: Partial<AdminSettings>) =>
       request<AdminSettings>('/admin/settings', { method: 'PUT', body, token }),
   },
 };
@@ -383,7 +518,10 @@ export type NotificationKind =
   | 'appointment_cancelled'
   | 'plan_adjusted'
   | 'access_granted'
-  | 'access_revoked';
+  | 'access_revoked'
+  | 'post_approved'
+  | 'post_removed'
+  | 'announcement';
 
 export interface NotificationItem {
   id: string;
@@ -485,17 +623,43 @@ export interface AdminStats {
     nutritionists: number;
     admins: number;
     blocked: number;
+    newToday: number;
     newThisWeek: number;
+    activeToday: number;
     activeThisWeek: number;
   };
   appointments: Record<AppointmentStatus, number>;
+  content: {
+    posts: number;
+    publicPosts: number;
+    pending: number;
+    removed: number;
+    reported: number;
+    postsThisWeek: number;
+    postLikes: number;
+    articles: number;
+    drafts: number;
+    articleViews: number;
+    articleLikes: number;
+  };
+  ai: { chatToday: number; chatWeek: number; photoToday: number; photoWeek: number };
+  moderation: {
+    approved: number;
+    rejected: number;
+    pending: number;
+    reasons: { reason: string; count: number }[];
+  };
+  series: { day: string; signups: number; active: number }[];
+  topArticles: { id: string; title: string; views: number; likes: number }[];
 }
 
 export interface AdminUser {
   id: string;
   email: string;
   role: Role;
+  displayName: string | null;
   createdAt: string;
+  lastActiveAt: string | null;
   blockedAt: string | null;
   blockedReason: string | null;
 }
@@ -511,6 +675,11 @@ export interface AdminLogEntry {
 
 export interface AdminSettings {
   freeConsultationDays: number;
+  aiChatDaily: number;
+  aiPhotoDaily: number;
+  communityEnabled: boolean;
+  communityPremoderation: boolean;
+  postsDaily: number;
 }
 
 export interface WorkoutProgram {
@@ -522,4 +691,158 @@ export interface WorkoutProgram {
 export interface WorkoutLogEntry {
   day: string;
   exerciseId: string;
+}
+
+// ------------------------------------------------------------------ comunitate si blog
+
+/** Adresa unei fotografii salvate pe server (se cere cu antetul Authorization). */
+export const mediaUrl = (id: string) => `${API_URL}/media/${id}`;
+
+export interface Page<T> {
+  items: T[];
+  nextCursor: string | null;
+}
+
+export type PostKind = 'meal' | 'workout' | 'running' | 'cycling' | 'other';
+export type Visibility = 'private' | 'public';
+export type ReportReason = 'nudity' | 'violence' | 'spam' | 'harassment' | 'not_relevant' | 'other';
+
+export interface Author {
+  id: string;
+  name: string;
+  avatarId: string | null;
+  role: Role;
+}
+
+export interface Post {
+  id: string;
+  author: Author;
+  mediaId: string;
+  kind: PostKind;
+  caption: string;
+  visibility: Visibility;
+  status: 'published' | 'pending' | 'removed';
+  meal: { dish: string; nutrients: Nutrients } | null;
+  likeCount: number;
+  saveCount: number;
+  likedByMe: boolean;
+  savedByMe: boolean;
+  isMine: boolean;
+  removedReason: string | null;
+  createdAt: string;
+}
+
+export interface ToggleResult {
+  value: boolean;
+  likeCount: number;
+  saveCount: number;
+}
+
+export type Goal = 'lose' | 'gain' | 'muscle' | 'maintain';
+
+export interface SocialProfile {
+  id: string;
+  displayName: string;
+  bio: string;
+  avatarId: string | null;
+  role: Role;
+  showProgress: boolean;
+  progress: { pct: number; kind: 'weight' | 'consistency'; goal: Goal } | null;
+  stats: { posts: number; likes: number };
+  isMe: boolean;
+}
+
+export interface GoalProgress {
+  goal: Goal;
+  pct: number;
+  kind: 'weight' | 'consistency';
+  startKg: number;
+  currentKg: number;
+  targetKg: number | null;
+  loggedDays: number;
+  workoutDays: number;
+}
+
+export interface MySocial {
+  profile: SocialProfile;
+  progress: GoalProgress | null;
+  savedCount: number;
+}
+
+export type BlogCategory = 'nutrition' | 'training' | 'health' | 'recipes' | 'motivation';
+export type ArticleStatus = 'draft' | 'published' | 'archived';
+
+export interface ArticleCard {
+  id: string;
+  title: string;
+  summary: string;
+  category: BlogCategory;
+  coverId: string | null;
+  author: Author & { title: string };
+  status: ArticleStatus;
+  pinned: boolean;
+  readMinutes: number;
+  likeCount: number;
+  viewCount: number;
+  saveCount: number;
+  likedByMe: boolean;
+  savedByMe: boolean;
+  isMine: boolean;
+  publishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Article extends ArticleCard {
+  body: string;
+}
+
+export interface ArticleInput {
+  title: string;
+  summary: string;
+  body: string;
+  category: BlogCategory;
+  status: 'draft' | 'published';
+  coverImage?: string;
+  coverMimeType?: 'image/jpeg';
+  removeCover?: boolean;
+}
+
+// ------------------------------------------------------------------ administrare
+
+export type ModerationFilter = 'pending' | 'reported' | 'removed' | 'all';
+export type Audience = 'all' | 'user' | 'nutritionist';
+
+export interface ModerationItem {
+  id: string;
+  author: { id: string; email: string; name: string };
+  mediaId: string;
+  kind: PostKind;
+  caption: string;
+  visibility: Visibility;
+  status: 'published' | 'pending' | 'removed';
+  moderation: { verdict?: 'approved' | 'unchecked'; relevant?: boolean; checkedAt?: string };
+  removedReason: string | null;
+  likeCount: number;
+  reports: { reason: ReportReason; note: string; createdAt: string }[];
+  createdAt: string;
+}
+
+export interface AdminUserDetail {
+  user: AdminUser;
+  activity: {
+    activeSessions: number;
+    posts: number;
+    publicPosts: number;
+    removedPosts: number;
+    reportsAgainst: number;
+    reportsMade: number;
+    rejectedUploads: number;
+    articles: number;
+    aiChatWeek: number;
+    aiPhotoWeek: number;
+    appointments: number;
+    failedLogins: number;
+    lockedUntil: string | null;
+  };
 }

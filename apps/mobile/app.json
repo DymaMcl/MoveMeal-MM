@@ -31,7 +31,8 @@
           "photosPermission": "MoveMeal accesează fotografiile pe care le alegi pentru a estima caloriile mesei.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-image"
     ]
   }
 }

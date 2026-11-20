@@ -1,16 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ScreenHeader } from '@/components/app-menu';
 import { Button, Card, Segmented } from '@/components/ui';
 import { LANGUAGES, useI18n, type Language } from '@/i18n';
 import { useAppState } from '@/state/app-state';
-import { useStyles, useThemeSettings, type ThemeMode } from '@/theme';
+import { ACCENT_SWATCH, ACCENTS, useStyles, useThemeSettings, type ThemeMode } from '@/theme';
 
 /** Setarile: tema, limba si iesirea din cont (accesibile si din meniul cu 3 linii). */
 export default function Settings() {
   const { t, language, setLanguage } = useI18n();
-  const { mode, setMode } = useThemeSettings();
+  const { mode, setMode, accent, setAccent } = useThemeSettings();
   const { session, signOut } = useAppState();
   const s = useStyles((th) => ({
     safe: { flex: 1, backgroundColor: th.colors.background },
@@ -24,6 +25,19 @@ export default function Settings() {
     group: { gap: th.spacing.sm },
     row: { flexDirection: 'row', justifyContent: 'space-between', gap: th.spacing.md },
     value: { ...th.font.body, fontWeight: '600', flexShrink: 1, textAlign: 'right' },
+    swatches: { flexDirection: 'row', justifyContent: 'space-between', gap: th.spacing.sm },
+    swatchItem: { alignItems: 'center', gap: 6, flex: 1 },
+    swatch: {
+      width: 52,
+      height: 52,
+      borderRadius: 26,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 3,
+      borderColor: 'transparent',
+    },
+    swatchActive: { borderColor: th.colors.text },
+    swatchLabel: { ...th.font.caption, fontWeight: '600' },
   }));
 
   const themeOptions: {
@@ -47,6 +61,39 @@ export default function Settings() {
 
         <Card title={t('settings.theme')} icon="contrast-outline">
           <Segmented options={themeOptions} value={mode} onChange={setMode} />
+        </Card>
+        <Card title={t('settings.color')} icon="color-palette-outline">
+          <View style={s.swatches} accessibilityRole="radiogroup">
+            {ACCENTS.map((a) => {
+              const active = a === accent;
+              return (
+                <Pressable
+                  key={a}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={t(`settings.colors.${a}`)}
+                  onPress={() => setAccent(a)}
+                  style={s.swatchItem}
+                >
+                  <View style={[s.swatch, active && s.swatchActive]}>
+                    <View
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 20,
+                        backgroundColor: ACCENT_SWATCH[a],
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {active ? <Ionicons name="checkmark" size={22} color="#FFFFFF" /> : null}
+                    </View>
+                  </View>
+                  <Text style={s.swatchLabel}>{t(`settings.colors.${a}`)}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </Card>
         <Card title={t('settings.language')} icon="language-outline">
           <Segmented options={languageOptions} value={language} onChange={setLanguage} />

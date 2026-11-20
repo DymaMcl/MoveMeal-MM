@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import * as SecureStore from 'expo-secure-store';
 import {
   createContext,
@@ -197,6 +198,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     if (session) await api.logout(session.token).catch(() => undefined);
+    // Fotografiile vazute in cont nu raman in cache pentru urmatorul utilizator al telefonului.
+    await Promise.all([Image.clearMemoryCache(), Image.clearDiskCache()]).catch(() => undefined);
     await clearLocal();
   }, [session, clearLocal]);
 
