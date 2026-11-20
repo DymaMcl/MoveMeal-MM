@@ -11,7 +11,7 @@ import {
 import { AiModule } from '../ai/ai.module.js';
 import { AuthGuard, UserId } from '../auth/auth.guard.js';
 import { AuthModule } from '../auth/auth.module.js';
-import { AnalyzePhotoDto, LogPhotoDto } from './food-photo.dto.js';
+import { AnalyzePhotoDto, EditPhotoItemDto, LogPhotoDto } from './food-photo.dto.js';
 import { FoodPhotoService } from './food-photo.service.js';
 
 @Controller('me/food-photo')
@@ -23,7 +23,18 @@ export class FoodPhotoController {
   @Post()
   @HttpCode(200)
   analyze(@UserId() userId: string, @Body() body: AnalyzePhotoDto) {
-    return this.photos.analyze(userId, body.image, body.mimeType, body.language);
+    return this.photos.analyze(userId, body.image, body.mimeType, body.language, body.hint);
+  }
+
+  /** Corecteaza sau adauga un aliment inainte de salvarea in jurnal. */
+  @Post(':id/items')
+  @HttpCode(200)
+  editItem(
+    @UserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: EditPhotoItemDto,
+  ) {
+    return this.photos.editItem(userId, id, body);
   }
 
   @Post(':id/log')

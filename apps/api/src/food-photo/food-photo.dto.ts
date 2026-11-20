@@ -6,9 +6,12 @@ import {
   IsBase64,
   IsIn,
   IsInt,
+  IsOptional,
+  IsString,
   Matches,
   Max,
   MaxLength,
+  MinLength,
   Min,
   ValidateNested,
 } from 'class-validator';
@@ -27,6 +30,43 @@ export class AnalyzePhotoDto {
 
   @IsIn(IMAGE_TYPES)
   mimeType!: (typeof IMAGE_TYPES)[number];
+
+  @IsIn(LANGUAGES)
+  language!: (typeof LANGUAGES)[number];
+
+  /** Descrierea optionala a mesei (ajuta la recunoasterea corecta). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  hint?: string;
+}
+
+/** Corectarea unui aliment (index dat) sau adaugarea unuia nou (fara index). */
+export class EditPhotoItemDto {
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(MAX_ITEMS - 1)
+  index?: number;
+
+  /** Alimentul din catalog… */
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  foodId?: string;
+
+  /** …sau denumirea scrisa de utilizator (valorile le estimeaza modelul AI). */
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  @MaxLength(80)
+  name?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(MAX_GRAMS)
+  grams?: number;
 
   @IsIn(LANGUAGES)
   language!: (typeof LANGUAGES)[number];
