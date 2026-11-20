@@ -40,6 +40,8 @@ interface NutritionValue {
   }) => Promise<void>;
   eatPlanned: (day: string, slot: MealSlot) => Promise<void>;
   deleteEntry: (entry: FoodLogEntry) => Promise<void>;
+  /** Adauga in jurnalul local inregistrarile salvate deja pe server (produse, copieri etc.). */
+  appendEntries: (entries: FoodLogEntry[]) => void;
 
   waterToday: number;
   addWater: (ml: number) => Promise<void>;
@@ -162,6 +164,18 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
     [token],
   );
 
+  const appendEntries = useCallback((entries: FoodLogEntry[]) => {
+    if (!entries.length) return;
+    setLog((prev) => {
+      const next = { ...prev };
+      for (const e of entries) {
+        // Ziua neincarcata inca se incarca la deschidere, cu toate inregistrarile.
+        if (next[e.day]) next[e.day] = [...next[e.day], e];
+      }
+      return next;
+    });
+  }, []);
+
   const addWater = useCallback(
     async (ml: number) => {
       if (!token) return;
@@ -189,6 +203,7 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
       addEntry,
       eatPlanned,
       deleteEntry,
+      appendEntries,
       waterToday,
       addWater,
     }),
@@ -204,6 +219,7 @@ export function NutritionProvider({ children }: { children: ReactNode }) {
       addEntry,
       eatPlanned,
       deleteEntry,
+      appendEntries,
       waterToday,
       addWater,
     ],

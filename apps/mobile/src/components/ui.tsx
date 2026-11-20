@@ -194,7 +194,7 @@ export function Field({
   }));
   return (
     <View style={s.field}>
-      <Text style={s.label}>{label}</Text>
+      {label ? <Text style={s.label}>{label}</Text> : null}
       <View style={[s.row, !!error && s.rowError]}>
         {icon ? <Ionicons name={icon} size={20} color={t.colors.textMuted} /> : null}
         <TextInput

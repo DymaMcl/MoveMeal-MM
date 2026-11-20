@@ -18,9 +18,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, type LogMeal, type PhotoAnalysis } from '@/api/client';
+import { api, type FoodLogEntry, type LogMeal, type PhotoAnalysis } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
+import { SaveMealSheet } from '@/components/quick-log';
 import { ActionSheet } from '@/components/social';
 import { useToast } from '@/components/toast';
 import { Button, Card, Notice, Segmented } from '@/components/ui';
@@ -68,7 +69,9 @@ export default function FoodPhoto() {
   const toast = useToast();
   const { session } = useAppState();
   const { loadDay } = useNutrition();
-  const params = useLocalSearchParams<{ day?: string; meal?: LogMeal }>();
+  const params = useLocalSearchParams<{ day?: string; meal?: LogMeal; mode?: 'text' }>();
+  /** Masa descrisa in cuvinte in loc de fotografie (aceeasi verificare a rezultatului). */
+  const textMode = params.mode === 'text';
   const day = params.day ?? isoDate(new Date());
   const [meal, setMeal] = useState<LogMeal>(
     params.meal && MEALS.includes(params.meal) ? params.meal : mealByHour(),
@@ -81,6 +84,9 @@ export default function FoodPhoto() {
   const [editing, setEditing] = useState<Editing | null>(null);
   const [editBusy, setEditBusy] = useState(false);
   const [reanalyze, setReanalyze] = useState(false);
+  /** Inregistrarile salvate, ca masa sa poata fi pastrata si in „Mesele mele”. */
+  const [savedEntries, setSavedEntries] = useState<FoodLogEntry[]>([]);
+  const [saveMealOpen, setSaveMealOpen] = useState(false);
   /** null = se verifica; false = serviciul AI nu este configurat. */
   const [available, setAvailable] = useState<boolean | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
@@ -92,10 +98,25 @@ export default function FoodPhoto() {
       .status(token)
       .then((s) => {
         setAvailable(s.available);
-        setRemaining(s.remaining.photo);
+        setRemaining(textMode ? s.remaining.chat : s.remaining.photo);
       })
       .catch(() => setAvailable(false));
-  }, [token]);
+  }, [token, textMode]);
+
+  /** Analiza descrierii scrise sau dictate. */
+  async function analyzeText() {
+    if (!token || hint.trim().length < 2) return;
+    setStage({ kind: 'analyzing' });
+    try {
+      const analysis = await api.ai.analyzeText(token, hint.trim(), language);
+      setChoices(analysis.items.map((i) => ({ include: true, grams: i.grams })));
+      setStage({ kind: 'result', analysis });
+      setRemaining((n) => (n === null ? n : Math.max(0, n - 1)));
+    } catch (e) {
+      toast(t(errorKey(e)));
+      setStage({ kind: 'pick' });
+    }
+  }
 
   async function analyze(image: PickedImage, description: string) {
     if (!token) return;
@@ -203,7 +224,7 @@ export default function FoodPhoto() {
     }
     setSaving(true);
     try {
-      await api.ai.logPhoto(token, analysis.id, { day, meal, items });
+      setSavedEntries(await api.ai.logPhoto(token, analysis.id, { day, meal, items }));
       await loadDay(day).catch(() => undefined);
       toast(t('photo.saved'));
       setStage({ kind: 'saved', analysis, kcal: Math.round(total.kcal) });
@@ -363,9 +384,88 @@ export default function FoodPhoto() {
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
       <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-        <ScreenHeader title={t('photo.title')} subtitle={t('photo.subtitle')} back />
+        <ScreenHeader
+          title={textMode ? t('quick.describeTitle') : t('photo.title')}
+          subtitle={textMode ? t('quick.describeSubtitle') : t('photo.subtitle')}
+          back
+        />
 
-        {stage.kind === 'pick' ? (
+        {stage.kind === 'pick' && textMode ? (
+          available === false ? (
+            <>
+              <Notice tone="info">{t('photo.unavailable')}</Notice>
+              <Button
+                title={t('photo.manual')}
+                icon="search"
+                onPress={() => router.replace({ pathname: '/food-search', params: { day, meal } })}
+              />
+            </>
+          ) : (
+            <>
+              <View style={s.hero}>
+                <View style={s.heroIcon}>
+                  <Ionicons name="chatbubble-ellipses" size={38} color={theme.colors.primary} />
+                </View>
+                <Text style={s.center}>{t('quick.describeIntro')}</Text>
+                {remaining !== null ? (
+                  <Text style={s.caption}>{t('quick.describeRemaining', { n: remaining })}</Text>
+                ) : null}
+              </View>
+              <TextInput
+                style={[s.hint, { minHeight: 120, textAlignVertical: 'top', paddingTop: 12 }]}
+                value={hint}
+                onChangeText={setHint}
+                placeholder={t('quick.describePlaceholder')}
+                placeholderTextColor={theme.colors.textMuted}
+                multiline
+                maxLength={500}
+                autoFocus
+                accessibilityLabel={t('quick.describeTitle')}
+              />
+              <View style={s.tip}>
+                <Ionicons name="mic-outline" size={18} color={theme.colors.primary} />
+                <Text style={[s.tipText, { color: theme.colors.textMuted }]}>
+                  {t('quick.dictateHint')}
+                </Text>
+              </View>
+              {available === null ? (
+                <ActivityIndicator color={theme.colors.primary} />
+              ) : (
+                <Button
+                  title={t('quick.analyze')}
+                  icon="sparkles"
+                  disabled={hint.trim().length < 2}
+                  onPress={analyzeText}
+                />
+              )}
+              <Card title={t('quick.examplesTitle')} icon="bulb-outline">
+                {(['example1', 'example2', 'example3'] as const).map((key) => (
+                  <Pressable
+                    key={key}
+                    accessibilityRole="button"
+                    style={s.tip}
+                    onPress={() => setHint(t(`quick.${key}`))}
+                  >
+                    <Ionicons name="chatbox-outline" size={18} color={theme.colors.primary} />
+                    <Text style={s.tipText}>{t(`quick.${key}`)}</Text>
+                  </Pressable>
+                ))}
+              </Card>
+            </>
+          )
+        ) : null}
+
+        {stage.kind === 'analyzing' && !photo ? (
+          <Card>
+            <View style={{ alignItems: 'center', gap: 10, paddingVertical: 24 }}>
+              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <Text style={theme.font.heading}>{t('quick.analyzingText')}</Text>
+              <Text style={[theme.font.caption, { textAlign: 'center' }]}>“{hint.trim()}”</Text>
+            </View>
+          </Card>
+        ) : null}
+
+        {stage.kind === 'pick' && !textMode ? (
           available === false ? (
             <>
               <Notice tone="info">{t('photo.unavailable')}</Notice>
@@ -423,31 +523,46 @@ export default function FoodPhoto() {
             <Text style={[theme.font.title, { textAlign: 'center', fontSize: 22 }]}>
               {t('photo.savedTitle', { kcal: stage.kcal })}
             </Text>
-            <Text style={s.center}>{t('photo.shareHint')}</Text>
             {photo ? (
-              <Image source={{ uri: photo.uri }} style={s.photo} resizeMode="cover" />
+              <>
+                <Text style={s.center}>{t('photo.shareHint')}</Text>
+                <Image source={{ uri: photo.uri }} style={s.photo} resizeMode="cover" />
+                <Button
+                  title={t('photo.share')}
+                  icon="share-social-outline"
+                  onPress={() =>
+                    router.replace({
+                      pathname: '/post/new',
+                      params: {
+                        imageKey: stashImage(photo),
+                        foodPhotoId: stage.analysis.id,
+                        dish: stage.analysis.dish,
+                        kcal: String(stage.kcal),
+                      },
+                    })
+                  }
+                />
+              </>
+            ) : null}
+            {savedEntries.length ? (
+              <Button
+                title={t('quick.saveToMyMeals')}
+                icon="bookmark-outline"
+                variant="secondary"
+                onPress={() => setSaveMealOpen(true)}
+              />
             ) : null}
             <Button
-              title={t('photo.share')}
-              icon="share-social-outline"
-              onPress={() =>
-                photo &&
-                router.replace({
-                  pathname: '/post/new',
-                  params: {
-                    imageKey: stashImage(photo),
-                    foodPhotoId: stage.analysis.id,
-                    dish: stage.analysis.dish,
-                    kcal: String(stage.kcal),
-                  },
-                })
-              }
-            />
-            <Button
               title={t('photo.done')}
-              variant="secondary"
+              variant={photo ? 'ghost' : 'primary'}
               icon="checkmark"
               onPress={() => router.back()}
+            />
+            <SaveMealSheet
+              visible={saveMealOpen}
+              entries={savedEntries}
+              defaultName={stage.analysis.dish}
+              onClose={() => setSaveMealOpen(false)}
             />
           </>
         ) : null}
@@ -606,7 +721,7 @@ export default function FoodPhoto() {
                   ) : null}
                 </Card>
 
-                {reanalyze && photo ? (
+                {textMode ? null : reanalyze && photo ? (
                   <Card>
                     {hintInput}
                     <Button
@@ -636,7 +751,9 @@ export default function FoodPhoto() {
                   value={meal}
                   onChange={setMeal}
                 />
-                <Text style={theme.font.caption}>{t('photo.disclaimer')}</Text>
+                <Text style={theme.font.caption}>
+                  {t(textMode ? 'quick.disclaimerText' : 'photo.disclaimer')}
+                </Text>
                 <Button
                   title={t('photo.save', { kcal: Math.round(total.kcal) })}
                   icon="checkmark"
@@ -644,8 +761,8 @@ export default function FoodPhoto() {
                   onPress={save}
                 />
                 <Button
-                  title={t('photo.retake')}
-                  icon="camera-reverse-outline"
+                  title={textMode ? t('quick.editText') : t('photo.retake')}
+                  icon={textMode ? 'create-outline' : 'camera-reverse-outline'}
                   variant="ghost"
                   disabled={saving}
                   onPress={() => setStage({ kind: 'pick' })}

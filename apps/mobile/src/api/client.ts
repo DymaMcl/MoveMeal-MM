@@ -103,8 +103,11 @@ export interface FoodLogEntry extends Nutrients {
   id: string;
   day: string;
   meal: LogMeal;
-  /** photo = aliment recunoscut din fotografie, care nu exista in catalog. */
-  source: 'food' | 'recipe' | 'photo';
+  /**
+   * photo = aliment recunoscut din fotografie (sau din descriere) care nu exista in catalog;
+   * product = produs cu cod de bare sau propriu; quick = calorii introduse direct.
+   */
+  source: 'food' | 'recipe' | 'photo' | 'product' | 'quick';
   refId: string;
   name: string;
   amount: number;
@@ -156,6 +159,52 @@ export interface PhotoAnalysis {
   isFood: boolean;
   items: PhotoItem[];
   total: Nutrients;
+}
+
+/** Produs ambalat (Open Food Facts) sau adaugat de utilizator; valorile sunt la 100 g. */
+export interface Product {
+  id: string;
+  barcode: string | null;
+  name: string;
+  brand: string | null;
+  per100: Nutrients;
+  servingG: number | null;
+  imageUrl: string | null;
+  source: 'off' | 'user';
+}
+
+export interface ProductInput {
+  barcode?: string;
+  name: string;
+  brand?: string;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  servingG?: number;
+}
+
+export interface LabelDraft {
+  name: string | null;
+  brand: string | null;
+  per100: Nutrients;
+  servingG: number | null;
+}
+
+export interface SavedMealItem extends Nutrients {
+  source: FoodLogEntry['source'];
+  refId: string;
+  name: string;
+  amount: number;
+  unit: 'g' | 'portion';
+}
+
+export interface SavedMeal {
+  id: string;
+  name: string;
+  items: SavedMealItem[];
+  total: Nutrients;
+  uses: number;
 }
 
 export interface Measurement {
@@ -231,6 +280,63 @@ export const api = {
   deleteFoodLog: (token: string, id: string) =>
     request<void>(`/me/food-log/${id}`, { method: 'DELETE', token }),
   recentFoods: (token: string) => request<string[]>('/me/food-log/recent-foods', { token }),
+  logProduct: (
+    token: string,
+    body: { day: string; meal: LogMeal; productId: string; grams: number },
+  ) => request<FoodLogEntry>('/me/food-log/product', { method: 'POST', body, token }),
+  quickAdd: (
+    token: string,
+    body: {
+      day: string;
+      meal: LogMeal;
+      kcal: number;
+      name?: string;
+      protein?: number;
+      carbs?: number;
+      fat?: number;
+    },
+  ) => request<FoodLogEntry>('/me/food-log/quick', { method: 'POST', body, token }),
+  /** Copiaza o masa (fromMeal → toMeal) sau toata ziua. */
+  copyLog: (
+    token: string,
+    body: { fromDay: string; toDay: string; fromMeal?: LogMeal; toMeal?: LogMeal },
+  ) => request<FoodLogEntry[]>('/me/food-log/copy', { method: 'POST', body, token }),
+
+  products: {
+    byBarcode: (token: string, barcode: string) =>
+      request<Product>(`/products/barcode/${barcode}`, { token }),
+    lists: (token: string) =>
+      request<{ mine: Product[]; recent: Product[] }>('/me/products', { token }),
+    create: (token: string, body: ProductInput) =>
+      request<Product>('/me/products', { method: 'POST', body, token }),
+    update: (token: string, id: string, body: ProductInput) =>
+      request<Product>(`/me/products/${id}`, { method: 'PUT', body, token }),
+    remove: (token: string, id: string) =>
+      request<void>(`/me/products/${id}`, { method: 'DELETE', token }),
+    /** Valorile citite de AI de pe eticheta (nu se salveaza). */
+    readLabel: (token: string, image: string, language: 'ro' | 'en' | 'ru') =>
+      request<LabelDraft>('/me/products/label', {
+        method: 'POST',
+        body: { image, mimeType: 'image/jpeg', language },
+        token,
+      }),
+  },
+
+  savedMeals: {
+    list: (token: string) => request<SavedMeal[]>('/me/saved-meals', { token }),
+    create: (token: string, name: string, entryIds: string[]) =>
+      request<SavedMeal>('/me/saved-meals', { method: 'POST', body: { name, entryIds }, token }),
+    rename: (token: string, id: string, name: string) =>
+      request<void>(`/me/saved-meals/${id}`, { method: 'PATCH', body: { name }, token }),
+    remove: (token: string, id: string) =>
+      request<void>(`/me/saved-meals/${id}`, { method: 'DELETE', token }),
+    log: (token: string, id: string, day: string, meal: LogMeal) =>
+      request<FoodLogEntry[]>(`/me/saved-meals/${id}/log`, {
+        method: 'POST',
+        body: { day, meal },
+        token,
+      }),
+  },
 
   // Masuratori, apa, progres
   saveMeasurement: (token: string, day: string, weightKg: number) =>
@@ -296,6 +402,13 @@ export const api = {
       request<PhotoAnalysis>('/me/food-photo', {
         method: 'POST',
         body: { image, mimeType, language, ...(hint ? { hint } : {}) },
+        token,
+      }),
+    /** Masa descrisa in cuvinte (scrisa sau dictata). */
+    analyzeText: (token: string, text: string, language: 'ro' | 'en' | 'ru') =>
+      request<PhotoAnalysis>('/me/food-photo/text', {
+        method: 'POST',
+        body: { text, language },
         token,
       }),
     /** Corecteaza alimentul cu indexul dat sau adauga unul nou (fara index). */

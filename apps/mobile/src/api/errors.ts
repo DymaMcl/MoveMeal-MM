@@ -20,6 +20,25 @@ export function errorKey(error: unknown): string {
       return 'errors.postsLimit';
     case 'community_disabled':
       return 'errors.communityDisabled';
+    case 'product_not_found':
+    case 'product_incomplete':
+      return 'errors.productNotFound';
+    case 'products_unavailable':
+      return 'errors.productsUnavailable';
+    case 'label_unreadable':
+      return 'errors.labelUnreadable';
+    case 'product_invalid':
+      return 'errors.productInvalid';
+    case 'products_limit':
+      return 'errors.productsLimit';
+    case 'barcode_taken':
+      return 'errors.barcodeTaken';
+    case 'macros_exceed':
+      return 'errors.macrosExceed';
+    case 'nothing_to_copy':
+      return 'errors.nothingToCopy';
+    case 'saved_meals_limit':
+      return 'errors.savedMealsLimit';
     case 'content_rejected':
       // Motivul respingerii (de exemplu „adult”, „not_relevant”) are un mesaj propriu.
       return `social.rejected.${String(error.data.reason ?? 'unsafe')}`;
