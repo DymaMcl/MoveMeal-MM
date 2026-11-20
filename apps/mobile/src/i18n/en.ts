@@ -484,6 +484,12 @@ export const en: Dictionary = {
     per100: 'per 100 g',
   },
   server: {
+    clear: 'Clear the address',
+    saved: 'The server address was saved.',
+    howTitle: 'How to find the address',
+    how1: 'Connect the phone to the same Wi-Fi network (or hotspot) as the laptop running the server.',
+    how2: 'On the laptop, run ipconfig and copy the “IPv4 Address” of the Wi-Fi adapter (for example 172.20.10.3).',
+    how3: 'Enter the address here, tap “Test”, and when “The server is responding” appears, tap “Save”.',
     title: 'Server connection',
     link: 'Server connection settings',
     hint: 'The address of the computer running the MoveMeal server (for example 192.168.1.10). The phone must be on the same Wi-Fi network.',

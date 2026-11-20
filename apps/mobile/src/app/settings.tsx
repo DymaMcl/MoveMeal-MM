@@ -1,11 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { getApiUrl } from '@/api/client';
 import { ScreenHeader } from '@/components/app-menu';
-import { ServerSettingsSheet } from '@/components/server-settings';
 import { Button, Card, Segmented } from '@/components/ui';
 import { LANGUAGES, useI18n, type Language } from '@/i18n';
 import { useAppState } from '@/state/app-state';
@@ -23,7 +21,6 @@ export default function Settings() {
   const { t, language, setLanguage } = useI18n();
   const { mode, setMode, accent, setAccent } = useThemeSettings();
   const { session, signOut } = useAppState();
-  const [serverOpen, setServerOpen] = useState(false);
   const theme = useTheme();
   const s = useStyles((th) => ({
     safe: { flex: 1, backgroundColor: th.colors.background },
@@ -125,7 +122,7 @@ export default function Settings() {
         <Card title={t('server.title')} icon="server-outline">
           <Pressable
             accessibilityRole="button"
-            onPress={() => setServerOpen(true)}
+            onPress={() => router.push('/server-settings')}
             style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}
           >
             <Text style={[s.value, { flex: 1, textAlign: 'left' }]} numberOfLines={1}>
@@ -145,7 +142,6 @@ export default function Settings() {
           }}
         />
       </ScrollView>
-      <ServerSettingsSheet visible={serverOpen} onClose={() => setServerOpen(false)} />
     </SafeAreaView>
   );
 }

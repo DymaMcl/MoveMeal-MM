@@ -489,6 +489,12 @@ export const ro = {
     per100: 'la 100 g',
   },
   server: {
+    clear: 'Șterge adresa',
+    saved: 'Adresa serverului a fost salvată.',
+    howTitle: 'Cum afli adresa',
+    how1: 'Conectează telefonul la aceeași rețea Wi-Fi (sau hotspot) ca laptopul pe care rulează serverul.',
+    how2: 'Pe laptop, rulează comanda ipconfig și copiază „IPv4 Address” de la adaptorul Wi-Fi (de exemplu 172.20.10.3).',
+    how3: 'Scrie aici adresa, apasă „Testează”, iar când apare „Serverul răspunde”, apasă „Salvează”.',
     title: 'Conexiunea la server',
     link: 'Setările conexiunii la server',
     hint: 'Adresa calculatorului pe care rulează serverul MoveMeal (de exemplu 192.168.1.10). Telefonul trebuie să fie în aceeași rețea Wi-Fi.',

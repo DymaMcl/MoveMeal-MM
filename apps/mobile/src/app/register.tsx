@@ -2,7 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
+import { isNetworkError } from '@/api/client';
 import { errorKey } from '@/api/errors';
+import { ServerLink } from '@/components/server-link';
 import { Button, Field, Notice, Screen, Subtitle, Title } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
@@ -15,6 +17,7 @@ export default function Register() {
   const { register } = useAppState();
   const [busy, setBusy] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [networkFailed, setNetworkFailed] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -62,6 +65,7 @@ export default function Register() {
       await register(email.trim().toLowerCase(), password, consent);
       router.replace('/onboarding/personal');
     } catch (error) {
+      setNetworkFailed(isNetworkError(error));
       setServerError(t(errorKey(error)));
     } finally {
       setBusy(false);
@@ -123,6 +127,7 @@ export default function Register() {
       </Pressable>
       {show(errors.consent) ? <Text style={s.error}>{errors.consent}</Text> : null}
       {serverError ? <Notice>{serverError}</Notice> : null}
+      <ServerLink highlight={networkFailed} />
     </Screen>
   );
 }

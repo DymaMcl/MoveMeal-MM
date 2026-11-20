@@ -165,6 +165,8 @@ export function Field({
   hint,
   suffix,
   icon,
+  onClear,
+  clearLabel,
   ...input
 }: TextInputProps & {
   label: string;
@@ -172,6 +174,9 @@ export function Field({
   hint?: ReactNode;
   suffix?: string;
   icon?: IconName;
+  /** Afiseaza un buton care goleste campul (cand are text). */
+  onClear?: () => void;
+  clearLabel?: string;
 }) {
   const t = useTheme();
   const s = useStyles((th) => ({
@@ -204,6 +209,16 @@ export function Field({
           {...input}
         />
         {suffix ? <Text style={s.suffix}>{suffix}</Text> : null}
+        {onClear && input.value ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={clearLabel}
+            hitSlop={12}
+            onPress={onClear}
+          >
+            <Ionicons name="close-circle" size={22} color={t.colors.textMuted} />
+          </Pressable>
+        ) : null}
       </View>
       {error ? <Text style={s.error}>{error}</Text> : null}
       {hint}
