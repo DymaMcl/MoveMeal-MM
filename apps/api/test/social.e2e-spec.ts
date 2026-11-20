@@ -139,6 +139,11 @@ describe('Comunitatea, blogul si administrarea (e2e, Gemini simulat)', () => {
       'delete from blog_posts where author_id in (select id from users where email = any($1))',
       [emails],
     );
+    // Evenimentele de moderare raman altfel in statistici (user_id devine null la stergere).
+    await owner.query(
+      'delete from moderation_events where user_id in (select id from users where email = any($1))',
+      [emails],
+    );
     await owner.query('delete from users where email = any($1)', [emails]);
     await owner.end();
     await app.close();

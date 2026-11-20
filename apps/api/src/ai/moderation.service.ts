@@ -90,7 +90,7 @@ export class ModerationService {
         maxOutputTokens: 600,
         thinking: 'low',
         timeoutMs: 15_000,
-        hedgeAfterMs: 7_000,
+        hedgeAfterMs: 5_000,
         totalTimeoutMs: 30_000,
       });
       const flag = (key: string) => data[key] === true;

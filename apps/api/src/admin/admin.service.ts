@@ -432,6 +432,11 @@ export class AdminService {
 
   // ------------------------------------------------------------- blog
 
+  /** Toate articolele (ciorne, publicate, arhivate), de la toti autorii. */
+  articles(adminId: string, cursor?: string) {
+    return this.blog.authored(adminId, true, cursor);
+  }
+
   async moderateArticle(
     adminId: string,
     id: string,

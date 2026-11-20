@@ -174,11 +174,11 @@ export class BlogController {
     return this.blog.list(userId, query);
   }
 
-  /** Articolele autorului (si ciornele); administratorul le vede pe toate. */
+  /** Articolele autorului, inclusiv ciornele. */
   @Get('authored')
   @Roles('nutritionist', 'admin')
-  authored(@UserId() userId: string, @UserRole() role: Role, @Query() query: BlogQueryDto) {
-    return this.blog.authored(userId, role, query.cursor);
+  authored(@UserId() userId: string, @Query() query: BlogQueryDto) {
+    return this.blog.authored(userId, false, query.cursor);
   }
 
   @Get('authored/:id')

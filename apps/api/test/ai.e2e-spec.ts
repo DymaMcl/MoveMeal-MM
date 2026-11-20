@@ -364,8 +364,8 @@ describe('Asistentul AI si fotografierea mesei (e2e, Gemini simulat)', () => {
       .set('Authorization', user.auth)
       .send({ image: IMAGE, mimeType: 'image/jpeg', language: 'ro', hint: 'orez cu pui' })
       .expect(200);
-    // Raspunde modelul de rezerva, pornit dupa 7 s, fara sa astepte modelul lent (9 s).
-    expect(Date.now() - started).toBeLessThan(8_800);
+    // Raspunde modelul de rezerva, pornit dupa 5 s, fara sa astepte modelul lent (9 s).
+    expect(Date.now() - started).toBeLessThan(7_500);
     const { rows } = await owner.query('select model from food_photos where id = $1', [
       analysis.body.id,
     ]);

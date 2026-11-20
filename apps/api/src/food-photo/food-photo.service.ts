@@ -247,7 +247,7 @@ export class FoodPhotoService {
         maxOutputTokens: 2048,
         thinking: 'low',
         timeoutMs: 15_000,
-        hedgeAfterMs: 7_000,
+        hedgeAfterMs: 5_000,
         totalTimeoutMs: 35_000,
       }));
     } catch (error) {
@@ -349,7 +349,7 @@ ${CATALOG}`,
         maxOutputTokens: 400,
         thinking: 'minimal',
         timeoutMs: 12_000,
-        hedgeAfterMs: 6_000,
+        hedgeAfterMs: 4_000,
         totalTimeoutMs: 25_000,
       });
       if (data.isFood === false) {

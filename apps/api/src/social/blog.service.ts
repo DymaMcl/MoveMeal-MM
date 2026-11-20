@@ -225,10 +225,10 @@ export class BlogService {
 
   // ------------------------------------------------------------- autori
 
-  /** Articolele proprii (toate starile); administratorul le vede pe toate. */
+  /** Articolele proprii (toate starile) sau, pentru administrator, toate articolele. */
   async authored(
     userId: string,
-    role: Role,
+    all: boolean,
     cursorText?: string,
   ): Promise<{ items: ArticleCard[]; nextCursor: string | null }> {
     const cursor = parseCursor(cursorText);
@@ -238,7 +238,7 @@ export class BlogService {
          and ($3::timestamptz is null or (b.created_at, b.id) < ($3::timestamptz, $4::uuid))
        order by b.created_at desc, b.id desc
        limit ${BLOG_PAGE}`,
-      [userId, role === 'admin', cursor?.at ?? null, cursor?.id ?? null],
+      [userId, all, cursor?.at ?? null, cursor?.id ?? null],
     );
     const items = rows.map((r) => card(toArticle(r, userId)));
     return { items, nextCursor: nextCursor(items, BLOG_PAGE) };

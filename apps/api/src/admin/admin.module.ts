@@ -240,6 +240,11 @@ export class AdminController {
 
   // ------------------------------------------------------------- blog
 
+  @Get('articles')
+  articles(@UserId() adminId: string, @Query() query: ModerationQueryDto) {
+    return this.admin.articles(adminId, query.cursor);
+  }
+
   @Put('articles/:id')
   @HttpCode(204)
   async article(
