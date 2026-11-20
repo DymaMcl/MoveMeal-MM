@@ -42,7 +42,7 @@ export interface LogEntry extends Nutrients {
   day: string;
   meal: LogMeal;
   /** photo = aliment recunoscut din fotografie, care nu exista in catalog. */
-  source: 'food' | 'recipe' | 'photo';
+  source: 'food' | 'recipe' | 'photo' | 'product' | 'quick';
   refId: string;
   name: string;
   amount: number;

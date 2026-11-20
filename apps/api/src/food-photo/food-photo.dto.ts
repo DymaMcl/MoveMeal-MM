@@ -41,6 +41,17 @@ export class AnalyzePhotoDto {
   hint?: string;
 }
 
+/** Masa descrisa in cuvinte (scrisa sau dictata cu tastatura telefonului). */
+export class AnalyzeTextDto {
+  @IsString()
+  @MinLength(2)
+  @MaxLength(500)
+  text!: string;
+
+  @IsIn(LANGUAGES)
+  language!: (typeof LANGUAGES)[number];
+}
+
 /** Corectarea unui aliment (index dat) sau adaugarea unuia nou (fara index). */
 export class EditPhotoItemDto {
   @IsOptional()

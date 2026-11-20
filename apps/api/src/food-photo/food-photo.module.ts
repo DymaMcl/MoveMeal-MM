@@ -11,7 +11,12 @@ import {
 import { AiModule } from '../ai/ai.module.js';
 import { AuthGuard, UserId } from '../auth/auth.guard.js';
 import { AuthModule } from '../auth/auth.module.js';
-import { AnalyzePhotoDto, EditPhotoItemDto, LogPhotoDto } from './food-photo.dto.js';
+import {
+  AnalyzePhotoDto,
+  AnalyzeTextDto,
+  EditPhotoItemDto,
+  LogPhotoDto,
+} from './food-photo.dto.js';
 import { FoodPhotoService } from './food-photo.service.js';
 
 @Controller('me/food-photo')
@@ -24,6 +29,13 @@ export class FoodPhotoController {
   @HttpCode(200)
   analyze(@UserId() userId: string, @Body() body: AnalyzePhotoDto) {
     return this.photos.analyze(userId, body.image, body.mimeType, body.language, body.hint);
+  }
+
+  /** Masa descrisa in cuvinte; rezultatul se verifica la fel ca cel al unei fotografii. */
+  @Post('text')
+  @HttpCode(200)
+  analyzeText(@UserId() userId: string, @Body() body: AnalyzeTextDto) {
+    return this.photos.analyzeText(userId, body.text, body.language);
   }
 
   /** Corecteaza sau adauga un aliment inainte de salvarea in jurnal. */

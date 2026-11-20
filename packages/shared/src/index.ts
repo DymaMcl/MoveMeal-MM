@@ -7,3 +7,4 @@ export * from './nutrition/index.ts';
 export * from './progress.ts';
 export * from './body.ts';
 export * from './i18n/localize.ts';
+export * from './day-summary.ts';
