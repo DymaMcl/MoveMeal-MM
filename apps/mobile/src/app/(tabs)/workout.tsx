@@ -58,6 +58,16 @@ export default function Workout() {
     hero: { borderRadius: th.radius.xl, padding: th.spacing.lg, gap: th.spacing.sm },
     heroDay: { color: 'rgba(255,255,255,0.85)', fontWeight: '700', fontSize: 14 },
     heroTitle: { color: '#FFFFFF', fontWeight: '800', fontSize: 22 },
+    place: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
+    placeText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12 },
     track: {
       height: 8,
       borderRadius: 4,
@@ -229,7 +239,22 @@ export default function Workout() {
               end={{ x: 1, y: 1 }}
               style={s.hero}
             >
-              <Text style={s.heroDay}>{t(`workout.weekdays.${selected}`)}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={[s.heroDay, { flex: 1 }]}>{t(`workout.weekdays.${selected}`)}</Text>
+                {session.location ? (
+                  // Locul sedintei (util mai ales la antrenamentul mixt: acasa sau la sala).
+                  <View style={s.place}>
+                    <Ionicons
+                      name={session.location === 'home' ? 'home' : 'barbell'}
+                      size={14}
+                      color="#FFFFFF"
+                    />
+                    <Text style={s.placeText}>
+                      {t(session.location === 'home' ? 'workout.setup.home' : 'workout.setup.gym')}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={s.heroTitle}>{t(`workout.templates.${session.template}`)}</Text>
               <View style={s.track}>
                 <View style={[s.fill, { width: `${total ? (doneCount / total) * 100 : 0}%` }]} />

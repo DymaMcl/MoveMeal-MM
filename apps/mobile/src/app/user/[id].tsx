@@ -3,10 +3,11 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, type Post, type SocialProfile } from '@/api/client';
+import { api, type Post, type SocialProfile, type TrophyStatus } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
-import { GoalCard, ProfileHero } from '@/components/profile';
+import { GoalCard, ProfileHero, TrophyShelf } from '@/components/profile';
+import { useToast } from '@/components/toast';
 import { PhotoGrid } from '@/components/social';
 import { Button, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
@@ -23,6 +24,10 @@ export default function UserProfile() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [trophies, setTrophies] = useState<TrophyStatus[]>([]);
+  const [following, setFollowing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const toast = useToast();
   const token = session?.token;
 
   const load = useCallback(async () => {
@@ -38,7 +43,12 @@ export default function UserProfile() {
         return;
       }
       setProfile(p);
+      setFollowing(p.isFollowing);
       setPosts(page.items);
+      api
+        .userTrophies(token, id)
+        .then(setTrophies)
+        .catch(() => setTrophies([]));
       setCursor(page.nextCursor);
     } catch (e) {
       setError(t(errorKey(e)));
@@ -48,6 +58,21 @@ export default function UserProfile() {
   useEffect(() => {
     load();
   }, [load]);
+
+  /** Abonare / dezabonare, cu actualizarea imediata a numarului de urmaritori. */
+  async function toggleFollow() {
+    if (!token || !id || !profile) return;
+    setBusy(true);
+    try {
+      const state = await api.social.follow(token, id, !following);
+      setFollowing(state.following);
+      setProfile({ ...profile, stats: { ...profile.stats, followers: state.followers } });
+    } catch (e) {
+      toast(t(errorKey(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function more() {
     if (!token || !id || !cursor) return;
@@ -76,9 +101,34 @@ export default function UserProfile() {
               profile={profile}
               stats={[
                 { label: t('profile.posts'), value: profile.stats.posts },
-                { label: t('profile.likes'), value: profile.stats.likes },
+                {
+                  label: t('profile.followers'),
+                  value: profile.stats.followers,
+                  onPress: () =>
+                    router.push({
+                      pathname: '/follows/[id]',
+                      params: { id: profile.id, type: 'followers', name: profile.displayName },
+                    }),
+                },
+                {
+                  label: t('profile.following'),
+                  value: profile.stats.following,
+                  onPress: () =>
+                    router.push({
+                      pathname: '/follows/[id]',
+                      params: { id: profile.id, type: 'following', name: profile.displayName },
+                    }),
+                },
               ]}
             />
+            <Button
+              title={following ? t('profile.unfollow') : t('profile.follow')}
+              icon={following ? 'checkmark' : 'person-add'}
+              variant={following ? 'secondary' : 'primary'}
+              disabled={busy}
+              onPress={toggleFollow}
+            />
+            <TrophyShelf trophies={trophies} own={false} />
             {profile.progress ? <GoalCard progress={profile.progress} /> : null}
             <View style={s.section}>
               <Ionicons name="images-outline" size={20} color={theme.colors.primary} />

@@ -1,5 +1,6 @@
 import type {
   EnergyPlan,
+  TrophyId,
   EnergyProfile,
   FoodCategory,
   MealPlan,
@@ -402,10 +403,24 @@ export const api = {
     request<void>('/me/progress/adjustment/reject', { method: 'POST', token }),
 
   // Notificari
-  notifications: (token: string) =>
-    request<{ items: NotificationItem[]; unread: number }>('/me/notifications', { token }),
-  readNotifications: (token: string) =>
-    request<void>('/me/notifications/read', { method: 'POST', token }),
+  notifications: (token: string) => request<NotificationsResponse>('/me/notifications', { token }),
+  /** Marcheaza ca citita o sectiune (fara sectiune: toate). */
+  readNotifications: (token: string, section?: NotificationSection) =>
+    request<void>('/me/notifications/read', {
+      method: 'POST',
+      body: section ? { section } : {},
+      token,
+    }),
+  news: (token: string, language: 'ro' | 'en' | 'ru') =>
+    request<NewsItem[]>(`/news?language=${language}`, { token }),
+
+  // Pasi si trofee
+  steps: (token: string, days = 7) => request<StepsDay[]>(`/me/steps?days=${days}`, { token }),
+  setSteps: (token: string, body: { day: string; steps: number; source: 'manual' | 'device' }) =>
+    request<{ day: StepsDay; trophies: TrophyId[] }>('/me/steps', { method: 'PUT', body, token }),
+  myTrophies: (token: string) => request<TrophyStatus[]>('/me/trophies', { token }),
+  userTrophies: (token: string, id: string) =>
+    request<TrophyStatus[]>(`/users/${id}/trophies`, { token }),
 
   // Consultatii (utilizator)
   nutritionists: (token: string) => request<NutritionistCard[]>('/nutritionists', { token }),
@@ -478,7 +493,7 @@ export const api = {
   // Panoul nutritionistului
   panel: {
     profile: (token: string) => request<NutritionistCard>('/nutritionist/profile', { token }),
-    saveProfile: (token: string, body: Omit<NutritionistCard, 'id'>) =>
+    saveProfile: (token: string, body: Omit<NutritionistCard, 'id' | 'avatarId'>) =>
       request<NutritionistCard>('/nutritionist/profile', { method: 'PUT', body, token }),
     schedule: (token: string) => request<Schedule>('/nutritionist/schedule', { token }),
     setHours: (token: string, hours: WorkHour[]) =>
@@ -543,9 +558,15 @@ export const api = {
         `/users/${id}/posts${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
         { token },
       ),
-    feed: (token: string, kind?: PostKind | null, cursor?: string | null) => {
+    feed: (
+      token: string,
+      kind?: PostKind | null,
+      cursor?: string | null,
+      scope: 'all' | 'following' = 'all',
+    ) => {
       const params: string[] = [];
       if (kind) params.push(`kind=${kind}`);
+      if (scope === 'following') params.push('scope=following');
       if (cursor) params.push(`cursor=${encodeURIComponent(cursor)}`);
       return request<Page<Post>>(`/feed${params.length ? `?${params.join('&')}` : ''}`, { token });
     },
@@ -561,6 +582,19 @@ export const api = {
       },
     ) => request<Post>('/posts', { method: 'POST', body, token }),
     post: (token: string, id: string) => request<Post>(`/posts/${id}`, { token }),
+    /** Sfat text al echipei (doar nutritionisti si administratori). */
+    createTip: (token: string, body: { title: string; caption: string }) =>
+      request<Post>('/posts/tip', { method: 'POST', body, token }),
+    follow: (token: string, id: string, value: boolean) =>
+      request<{ following: boolean; followers: number }>(`/users/${id}/follow`, {
+        method: 'PUT',
+        body: { value },
+        token,
+      }),
+    followers: (token: string, id: string) =>
+      request<FollowUser[]>(`/users/${id}/followers`, { token }),
+    following: (token: string, id: string) =>
+      request<FollowUser[]>(`/users/${id}/following`, { token }),
     updatePost: (token: string, id: string, body: { caption?: string; visibility?: Visibility }) =>
       request<Post>(`/posts/${id}`, { method: 'PATCH', body, token }),
     deletePost: (token: string, id: string) =>
@@ -658,6 +692,13 @@ export const api = {
       request<void>(`/admin/articles/${id}`, { method: 'DELETE', token }),
     announce: (token: string, body: { title: string; body: string; audience: Audience }) =>
       request<{ recipients: number }>('/admin/announcements', { method: 'POST', body, token }),
+    /** Noutate in „Ce e nou?” (functie noua sau provocare), vizibila tuturor. */
+    createNews: (
+      token: string,
+      body: { kind: 'feature' | 'challenge'; title: string; body: string },
+    ) => request<NewsItem>('/admin/news', { method: 'POST', body, token }),
+    deleteNews: (token: string, id: string) =>
+      request<void>(`/admin/news/${id}`, { method: 'DELETE', token }),
     log: (token: string, action?: string, page = 0) =>
       request<AdminLogEntry[]>(`/admin/log?page=${page}${action ? `&action=${action}` : ''}`, {
         token,
@@ -679,14 +720,57 @@ export type NotificationKind =
   | 'access_revoked'
   | 'post_approved'
   | 'post_removed'
+  | 'post_liked'
+  | 'new_follower'
+  | 'trophy'
   | 'announcement';
+
+/** Sectiunile notificarilor: comunitatea, noutatile (functii si trofee) si cele personale. */
+export type NotificationSection = 'community' | 'news' | 'personal';
 
 export interface NotificationItem {
   id: string;
   kind: NotificationKind;
+  section: NotificationSection;
   payload: Record<string, string | number | null | undefined>;
   createdAt: string;
   read: boolean;
+}
+
+export interface NotificationsResponse {
+  items: NotificationItem[];
+  unread: number;
+  sections: Record<NotificationSection, number>;
+}
+
+/** Noutatile aplicatiei: functii noi (feature) sau provocari cu trofee (challenge). */
+export interface NewsItem {
+  id: string;
+  kind: 'feature' | 'challenge';
+  title: string;
+  body: string;
+  createdAt: string;
+  unread: boolean;
+}
+
+export interface StepsDay {
+  day: string;
+  steps: number;
+  source: 'manual' | 'device';
+}
+
+export interface TrophyStatus {
+  id: TrophyId;
+  earned: boolean;
+  awardedAt: string | null;
+  progress: number;
+  goal: number;
+}
+
+export interface FollowUser {
+  id: string;
+  name: string;
+  avatarId: string | null;
 }
 
 export interface NutritionistCard {
@@ -699,6 +783,8 @@ export interface NutritionistCard {
   services: string;
   priceMdl: number;
   slotMinutes: number;
+  /** Fotografia de profil; null = initialele. */
+  avatarId: string | null;
 }
 
 export interface Slot {
@@ -861,7 +947,8 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
-export type PostKind = 'meal' | 'workout' | 'running' | 'cycling' | 'other';
+/** tip = sfat text al echipei (nutritionist sau administrator), fara fotografie. */
+export type PostKind = 'meal' | 'workout' | 'running' | 'cycling' | 'other' | 'tip';
 export type Visibility = 'private' | 'public';
 export type ReportReason = 'nudity' | 'violence' | 'spam' | 'harassment' | 'not_relevant' | 'other';
 
@@ -875,8 +962,10 @@ export interface Author {
 export interface Post {
   id: string;
   author: Author;
-  mediaId: string;
+  /** null = sfat text al echipei. */
+  mediaId: string | null;
   kind: PostKind;
+  title: string | null;
   caption: string;
   visibility: Visibility;
   status: 'published' | 'pending' | 'removed';
@@ -906,7 +995,8 @@ export interface SocialProfile {
   role: Role;
   showProgress: boolean;
   progress: { pct: number; kind: 'weight' | 'consistency'; goal: Goal } | null;
-  stats: { posts: number; likes: number };
+  stats: { posts: number; likes: number; followers: number; following: number };
+  isFollowing: boolean;
   isMe: boolean;
 }
 
@@ -974,7 +1064,8 @@ export type Audience = 'all' | 'user' | 'nutritionist';
 export interface ModerationItem {
   id: string;
   author: { id: string; email: string; name: string };
-  mediaId: string;
+  /** null = sfat text al echipei. */
+  mediaId: string | null;
   kind: PostKind;
   caption: string;
   visibility: Visibility;

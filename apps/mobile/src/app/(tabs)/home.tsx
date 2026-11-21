@@ -6,7 +6,8 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { CalorieRing } from '@/components/calorie-ring';
 import { Card, IconCircle, Notice, type IconName } from '@/components/ui';
-import { localeOf, useI18n } from '@/i18n';
+import { formatNumber, localeOf, useI18n } from '@/i18n';
+import { StepsSheet } from '@/components/steps';
 import { api, type Appointment, type ProgressResponse } from '@/api/client';
 import { useAppState } from '@/state/app-state';
 import { formatDay, isoDate, weekdayOf } from '@/state/dates';
@@ -69,12 +70,14 @@ function StatTile({
   value,
   color,
   background,
+  onPress,
 }: {
   icon: IconName;
   label: string;
   value: string;
   color: string;
   background: string;
+  onPress?: () => void;
 }) {
   const theme = useTheme();
   const s = useStyles((th) => ({
@@ -91,11 +94,16 @@ function StatTile({
     value: { ...th.font.heading, fontSize: 20 },
   }));
   return (
-    <View style={s.tile}>
+    <Pressable
+      accessibilityRole={onPress ? 'button' : undefined}
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [s.tile, pressed && { opacity: 0.85 }]}
+    >
       <IconCircle icon={icon} color={color} background={background} size={38} />
       <Text style={s.value}>{value}</Text>
       <Text style={theme.font.caption}>{label}</Text>
-    </View>
+    </Pressable>
   );
 }
 
@@ -107,11 +115,19 @@ export default function Home() {
   const { program: workout, done } = useWorkout();
   const [progress, setProgress] = useState<ProgressResponse | null>(null);
   const [nextConsultation, setNextConsultation] = useState<Appointment | null>(null);
+  /** Pasii de azi (null = inca neintrodusi). */
+  const [stepsToday, setStepsToday] = useState<number | null>(null);
+  const [stepsOpen, setStepsOpen] = useState(false);
 
   // Ajustarea propusa (daca exista) se reincarca la fiecare intoarcere pe pagina.
   useFocusEffect(
     useCallback(() => {
       if (!session) return;
+      const today = isoDate(new Date());
+      api
+        .steps(session.token, 1)
+        .then((days) => setStepsToday(days.find((d) => d.day === today)?.steps ?? null))
+        .catch(() => undefined);
       api
         .progress(session.token)
         .then(setProgress)
@@ -434,7 +450,8 @@ export default function Home() {
           <StatTile
             icon="footsteps"
             label={t('home.steps')}
-            value="–"
+            value={stepsToday === null ? t('steps.add') : formatNumber(stepsToday, language, 0)}
+            onPress={() => setStepsOpen(true)}
             color={theme.colors.info}
             background={theme.colors.infoSoft}
           />
@@ -470,6 +487,7 @@ export default function Home() {
 
         <Notice tone="info">{t('common.disclaimer')}</Notice>
       </ScrollView>
+      <StepsSheet visible={stepsOpen} onClose={() => setStepsOpen(false)} onSaved={setStepsToday} />
     </SafeAreaView>
   );
 }

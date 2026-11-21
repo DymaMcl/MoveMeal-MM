@@ -2,12 +2,20 @@ import { Ionicons } from '@expo/vector-icons';
 import { MenuButton } from '@/components/app-menu';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, type Measurement, type ProgressResponse } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { useToast } from '@/components/toast';
-import { Button, Card, Field, Notice, parseNumber, Segmented } from '@/components/ui';
+import {
+  Button,
+  Card,
+  Field,
+  Notice,
+  parseNumber,
+  Segmented,
+  KeyboardScroll,
+} from '@/components/ui';
 import { WeightChart } from '@/components/weight-chart';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
@@ -131,7 +139,7 @@ export default function Progress() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+      <KeyboardScroll contentContainerStyle={s.content}>
         <View style={s.header}>
           <Pressable accessibilityRole="button" style={s.back} onPress={() => router.back()}>
             <Ionicons name="chevron-back" size={22} color={theme.colors.text} />
@@ -245,7 +253,7 @@ export default function Progress() {
           )}
         </Card>
         <Notice tone="info">{t('common.disclaimer')}</Notice>
-      </ScrollView>
+      </KeyboardScroll>
     </SafeAreaView>
   );
 }

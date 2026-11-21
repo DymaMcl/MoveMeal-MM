@@ -8,15 +8,7 @@ import {
 } from '@movemeal/shared';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, type FoodLogEntry, type LogMeal, type PhotoAnalysis } from '@/api/client';
 import { errorKey } from '@/api/errors';
@@ -24,7 +16,7 @@ import { ScreenHeader } from '@/components/app-menu';
 import { SaveMealSheet } from '@/components/quick-log';
 import { ActionSheet } from '@/components/social';
 import { useToast } from '@/components/toast';
-import { Button, Card, Notice, Segmented } from '@/components/ui';
+import { Button, Card, Notice, Segmented, KeyboardScroll } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { isoDate } from '@/state/dates';
@@ -383,7 +375,7 @@ export default function FoodPhoto() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+      <KeyboardScroll contentContainerStyle={s.content}>
         <ScreenHeader
           title={textMode ? t('quick.describeTitle') : t('photo.title')}
           subtitle={textMode ? t('quick.describeSubtitle') : t('photo.subtitle')}
@@ -771,7 +763,7 @@ export default function FoodPhoto() {
             )}
           </>
         ) : null}
-      </ScrollView>
+      </KeyboardScroll>
 
       <ActionSheet
         visible={editing !== null}

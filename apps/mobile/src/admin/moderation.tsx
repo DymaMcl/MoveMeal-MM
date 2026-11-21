@@ -117,7 +117,7 @@ export function ModerationSection({
       ) : null}
       {items?.map((item) => (
         <View key={item.id} style={s.card}>
-          <RemoteImage mediaId={item.mediaId} style={s.image} />
+          {item.mediaId ? <RemoteImage mediaId={item.mediaId} style={s.image} /> : null}
           <View style={s.body}>
             <View style={s.head}>
               <View style={{ flex: 1 }}>

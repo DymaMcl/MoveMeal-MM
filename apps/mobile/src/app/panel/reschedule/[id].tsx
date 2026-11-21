@@ -1,12 +1,12 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, type Appointment, type Slot } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
 import { useToast } from '@/components/toast';
-import { Button, Notice } from '@/components/ui';
+import { Button, Notice, KeyboardScroll } from '@/components/ui';
 import { localeOf, useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { formatDay } from '@/state/dates';
@@ -85,7 +85,7 @@ export default function Reschedule() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
+      <KeyboardScroll contentContainerStyle={s.content}>
         <ScreenHeader
           title={t('panel.rescheduleTitle')}
           subtitle={
@@ -141,7 +141,7 @@ export default function Reschedule() {
             />
           </>
         ) : null}
-      </ScrollView>
+      </KeyboardScroll>
     </SafeAreaView>
   );
 }

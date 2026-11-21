@@ -49,6 +49,12 @@
             "usesCleartextTraffic": true
           }
         }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "MoveMeal citește pașii din telefon pentru provocările de mers."
+        }
       ]
     ]
   }

@@ -2,8 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import type { GoalProgress, SocialProfile } from '@/api/client';
+import { getTrophy, type TrophyTier } from '@movemeal/shared';
+import type { GoalProgress, SocialProfile, TrophyStatus } from '@/api/client';
 import { Avatar, ProgressRing, RoleBadge } from '@/components/social';
+import type { IconName } from '@/components/ui';
 import { formatNumber, useI18n } from '@/i18n';
 import { useStyles, useTheme } from '@/theme';
 
@@ -169,6 +171,100 @@ export function GoalCard({
             </Text>
           </View>
         ) : null}
+      </View>
+    </View>
+  );
+}
+
+const TIER_COLORS: Record<TrophyTier, { color: string; soft: string }> = {
+  gold: { color: '#D97706', soft: 'rgba(217, 119, 6, 0.14)' },
+  silver: { color: '#64748B', soft: 'rgba(100, 116, 139, 0.16)' },
+  bronze: { color: '#B45309', soft: 'rgba(180, 83, 9, 0.14)' },
+};
+
+/**
+ * Trofeele pentru provocari. In profilul propriu apar toate (cele neobtinute estompate, cu
+ * progresul); la ceilalti utilizatori doar cele obtinute.
+ */
+export function TrophyShelf({ trophies, own }: { trophies: TrophyStatus[]; own: boolean }) {
+  const { t } = useI18n();
+  const theme = useTheme();
+  const s = useStyles((th) => ({
+    head: { flexDirection: 'row', alignItems: 'center', gap: th.spacing.sm },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: th.spacing.sm },
+    item: {
+      width: '48.5%',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: th.spacing.sm,
+      padding: th.spacing.sm + 2,
+      borderRadius: th.radius.lg,
+      borderWidth: 1,
+      borderColor: th.colors.border,
+      backgroundColor: th.colors.surface,
+    },
+    medal: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: { ...th.font.body, fontWeight: '800', fontSize: 13, lineHeight: 17 },
+    sub: { ...th.font.caption, fontSize: 11, lineHeight: 15 },
+  }));
+  const list = own ? trophies : trophies.filter((x) => x.earned);
+  if (!list.length) return null;
+  const earned = trophies.filter((x) => x.earned).length;
+  return (
+    <View style={{ gap: theme.spacing.sm }}>
+      <View style={s.head}>
+        <Ionicons name="trophy-outline" size={20} color={theme.colors.primary} />
+        <Text style={[theme.font.heading, { flex: 1 }]}>{t('trophies.title')}</Text>
+        {own ? (
+          <Text style={theme.font.caption}>
+            {earned}/{trophies.length}
+          </Text>
+        ) : null}
+      </View>
+      <View style={s.grid}>
+        {list.map((trophy) => {
+          const def = getTrophy(trophy.id);
+          const tier = TIER_COLORS[def?.tier ?? 'bronze'];
+          return (
+            <View
+              key={trophy.id}
+              style={[s.item, trophy.earned && { borderColor: tier.color }]}
+              accessibilityLabel={`${t(`trophies.${trophy.id}.title`)}: ${t(`trophies.${trophy.id}.desc`)}`}
+            >
+              <View
+                style={[
+                  s.medal,
+                  { backgroundColor: trophy.earned ? tier.color : theme.colors.surfaceAlt },
+                ]}
+              >
+                <Ionicons
+                  name={(def?.icon ?? 'trophy') as IconName}
+                  size={22}
+                  color={trophy.earned ? '#FFFFFF' : theme.colors.textMuted}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[s.title, !trophy.earned && { color: theme.colors.textMuted }]}
+                  numberOfLines={2}
+                >
+                  {t(`trophies.${trophy.id}.title`)}
+                </Text>
+                <Text style={s.sub} numberOfLines={2}>
+                  {trophy.earned
+                    ? t(`trophies.tiers.${def?.tier ?? 'bronze'}`)
+                    : `${trophy.progress}/${trophy.goal} · ${t(`trophies.${trophy.id}.short`)}`}
+                </Text>
+              </View>
+            </View>
+          );
+        })}
       </View>
     </View>
   );

@@ -7,6 +7,7 @@ import { api, type Appointment, type ConsultationOffer, type NutritionistCard } 
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
 import { AppointmentCard, displayStatus } from '@/components/appointment-card';
+import { RemoteImage } from '@/components/social';
 import { useToast } from '@/components/toast';
 import { Button, Card, Notice } from '@/components/ui';
 import { localeOf, useI18n } from '@/i18n';
@@ -15,6 +16,20 @@ import { formatDate } from '@/state/dates';
 import { useStyles, useTheme } from '@/theme';
 
 /** Pagina „Nutritionist” a utilizatorului: profilul specialistului, oferta, programarile, acordul. */
+/** Forma corecta de plural pentru anii de experienta (ro: an / ani / de ani; ru: год / года / лет). */
+function experienceKey(years: number, language: string): string {
+  if (language === 'ru') {
+    const last = years % 10;
+    const lastTwo = years % 100;
+    if (last === 1 && lastTwo !== 11) return 'consult.experienceOne';
+    if (last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14)) return 'consult.experience';
+    return 'consult.experienceMany';
+  }
+  if (years === 1) return 'consult.experienceOne';
+  if (language === 'ro' && (years === 0 || years % 100 >= 20)) return 'consult.experienceMany';
+  return 'consult.experience';
+}
+
 export default function NutritionistPage() {
   const { t, language } = useI18n();
   const theme = useTheme();
@@ -66,6 +81,13 @@ export default function NutritionistPage() {
       justifyContent: 'center',
     },
     avatarText: { color: '#FFFFFF', fontSize: 26, fontWeight: '900' },
+    photo: {
+      width: 88,
+      height: 88,
+      borderRadius: 44,
+      borderWidth: 3,
+      borderColor: 'rgba(255,255,255,0.85)',
+    },
     name: { color: '#FFFFFF', fontSize: 21, fontWeight: '800' },
     heroText: { color: 'rgba(255,255,255,0.85)', fontSize: 14 },
     facts: { flexDirection: 'row', flexWrap: 'wrap', gap: th.spacing.sm, marginTop: 4 },
@@ -159,14 +181,18 @@ export default function NutritionistPage() {
               style={s.hero}
             >
               <View style={s.heroRow}>
-                <View style={s.avatar}>
-                  <Text style={s.avatarText}>
-                    {nutritionist.displayName
-                      .replace(/^Dr\.?\s*/i, '')
-                      .charAt(0)
-                      .toUpperCase()}
-                  </Text>
-                </View>
+                {nutritionist.avatarId ? (
+                  <RemoteImage mediaId={nutritionist.avatarId} style={s.photo} />
+                ) : (
+                  <View style={s.avatar}>
+                    <Text style={s.avatarText}>
+                      {nutritionist.displayName
+                        .replace(/^Dr\.?\s*/i, '')
+                        .charAt(0)
+                        .toUpperCase()}
+                    </Text>
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <Text style={s.name}>{nutritionist.displayName}</Text>
                   {nutritionist.title ? <Text style={s.heroText}>{nutritionist.title}</Text> : null}
@@ -176,7 +202,9 @@ export default function NutritionistPage() {
                 {nutritionist.experienceYears > 0 ? (
                   <View style={s.fact}>
                     <Text style={s.factText}>
-                      {t('consult.experience', { years: nutritionist.experienceYears })}
+                      {t(experienceKey(nutritionist.experienceYears, language), {
+                        years: nutritionist.experienceYears,
+                      })}
                     </Text>
                   </View>
                 ) : null}

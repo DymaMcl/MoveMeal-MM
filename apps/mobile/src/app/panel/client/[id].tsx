@@ -1,22 +1,14 @@
 import { movingAverage7 } from '@movemeal/shared';
 import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Platform, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, type ClientDetail } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
 import { AppointmentCard } from '@/components/appointment-card';
 import { useToast } from '@/components/toast';
-import { Button, Card, Field, Notice, parseNumber } from '@/components/ui';
+import { Button, Card, Field, Notice, parseNumber, KeyboardScroll } from '@/components/ui';
 import { WeightChart } from '@/components/weight-chart';
 import { localeOf, useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
@@ -130,177 +122,172 @@ export default function ClientScreen() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-          <ScreenHeader title={client?.profile.name ?? ''} back />
-          {error ? <Notice>{error}</Notice> : null}
-          {!client && !error ? (
-            <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
-          ) : null}
+      <KeyboardScroll contentContainerStyle={s.content}>
+        <ScreenHeader title={client?.profile.name ?? ''} back />
+        {error ? <Notice>{error}</Notice> : null}
+        {!client && !error ? (
+          <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
+        ) : null}
 
-          {client ? (
-            <>
-              <Card title={t('panel.tabs.profile')} icon="person-outline">
+        {client ? (
+          <>
+            <Card title={t('panel.tabs.profile')} icon="person-outline">
+              <Row
+                label={t('onboarding.personal.age')}
+                value={`${client.profile.age} ${t('common.years')}`}
+              />
+              <Row
+                label={t('onboarding.body.height')}
+                value={`${client.profile.heightCm} ${t('common.cm')}`}
+              />
+              <Row
+                label={t('onboarding.body.weight')}
+                value={`${client.profile.weightKg} ${t('common.kg')}`}
+              />
+              <Row
+                label={t('onboarding.goal.title')}
+                value={t(`onboarding.goal.${client.profile.goal}`)}
+              />
+              {client.profile.targetWeightKg !== undefined ? (
                 <Row
-                  label={t('onboarding.personal.age')}
-                  value={`${client.profile.age} ${t('common.years')}`}
+                  label={t('onboarding.target.title')}
+                  value={`${client.profile.targetWeightKg} ${t('common.kg')}`}
                 />
-                <Row
-                  label={t('onboarding.body.height')}
-                  value={`${client.profile.heightCm} ${t('common.cm')}`}
-                />
-                <Row
-                  label={t('onboarding.body.weight')}
-                  value={`${client.profile.weightKg} ${t('common.kg')}`}
-                />
-                <Row
-                  label={t('onboarding.goal.title')}
-                  value={t(`onboarding.goal.${client.profile.goal}`)}
-                />
-                {client.profile.targetWeightKg !== undefined ? (
-                  <Row
-                    label={t('onboarding.target.title')}
-                    value={`${client.profile.targetWeightKg} ${t('common.kg')}`}
-                  />
-                ) : null}
-                <Row
-                  label={t('onboarding.activity.title')}
-                  value={t(`onboarding.activity.${client.profile.activityLevel}`)}
-                />
-              </Card>
-
-              <Card title={t('panel.target')} icon="flame-outline">
-                <Text style={s.big}>
-                  {client.plan.targetCalories} {t('common.kcal')}
-                </Text>
-                <Text style={theme.font.caption}>
-                  {t(sourceKey)} · {t('common.proteinShort')} {client.plan.macros.proteinG}{' '}
-                  {t('common.g')} · {t('common.carbsShort')} {client.plan.macros.carbsG}{' '}
-                  {t('common.g')} · {t('common.fatShort')} {client.plan.macros.fatG} {t('common.g')}
-                </Text>
-              </Card>
-
-              <Card title={t('panel.weights')} icon="trending-down-outline">
-                {chart.length > 0 ? (
-                  <WeightChart data={chart} from={chart[0].day} to={chart[chart.length - 1].day} />
-                ) : (
-                  <Text style={theme.font.caption}>{t('panel.noData')}</Text>
-                )}
-              </Card>
-
-              <Card title={t('panel.foodLog')} icon="restaurant-outline">
-                {client.foodLog.length === 0 ? (
-                  <Text style={theme.font.caption}>{t('panel.noData')}</Text>
-                ) : (
-                  <>
-                    {client.foodLog.map((d) => (
-                      <View key={d.day} style={s.logRow}>
-                        <Text style={s.logDay}>{formatDay(d.day, locale)}</Text>
-                        <View style={s.track}>
-                          <View
-                            style={[
-                              s.fill,
-                              {
-                                width: `${Math.min(d.kcal / client.plan.targetCalories, 1) * 100}%`,
-                              },
-                            ]}
-                          />
-                        </View>
-                        <Text style={s.logValue}>
-                          {d.kcal} {t('common.kcal')}
-                        </Text>
-                      </View>
-                    ))}
-                    <Text style={theme.font.caption}>{t('panel.average', { kcal: avgKcal })}</Text>
-                  </>
-                )}
-              </Card>
-
-              <Card title={t('panel.mealPlan')} icon="nutrition-outline">
-                {client.mealPlan ? (
-                  <>
-                    {client.mealPlan.diet ? (
-                      <Row
-                        label={t('panel.diet')}
-                        value={t(`nutrition.setup.diets.${client.mealPlan.diet}`)}
-                      />
-                    ) : null}
-                    <Row
-                      label={t('panel.allergens')}
-                      value={
-                        client.mealPlan.allergens.length
-                          ? client.mealPlan.allergens
-                              .map((a) => t(`nutrition.setup.allergens.${a}`))
-                              .join(', ')
-                          : '—'
-                      }
-                    />
-                    {client.mealPlan.adjustedAt ? (
-                      <Text style={[theme.font.caption, { color: theme.colors.primary }]}>
-                        {t('consult.adjustedBadge')}
-                      </Text>
-                    ) : null}
-                  </>
-                ) : (
-                  <Text style={theme.font.caption}>{t('panel.noMealPlan')}</Text>
-                )}
-              </Card>
-
-              <Card title={t('panel.adjustTitle')} icon="create-outline">
-                <Field
-                  label={t('panel.newTarget')}
-                  value={target}
-                  onChangeText={setTarget}
-                  keyboardType="number-pad"
-                  suffix={t('common.kcal')}
-                  error={targetError}
-                  hint={
-                    targetError ? null : (
-                      <Text style={theme.font.caption}>
-                        {t('panel.limits', { min: client.minCalories, max: client.maxCalories })}
-                      </Text>
-                    )
-                  }
-                />
-                <Text style={[theme.font.caption, { fontWeight: '700' }]}>{t('panel.note')}</Text>
-                <TextInput
-                  style={s.note}
-                  value={note}
-                  onChangeText={setNote}
-                  multiline
-                  maxLength={1000}
-                />
-                <Button
-                  title={t('panel.apply')}
-                  icon="checkmark-done"
-                  disabled={!!targetError || busy}
-                  onPress={() => save(Math.round(value!))}
-                />
-                {client.adjustedBy === 'nutritionist' ? (
-                  <Button
-                    title={t('panel.resetAuto')}
-                    variant="ghost"
-                    disabled={busy}
-                    onPress={() => save(null)}
-                  />
-                ) : null}
-              </Card>
-
-              {client.appointments.length > 0 ? (
-                <>
-                  <Text style={theme.font.heading}>{t('panel.consultations')}</Text>
-                  {client.appointments.map((a) => (
-                    <AppointmentCard key={a.id} appointment={a} title={a.clientName} />
-                  ))}
-                </>
               ) : null}
-            </>
-          ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+              <Row
+                label={t('onboarding.activity.title')}
+                value={t(`onboarding.activity.${client.profile.activityLevel}`)}
+              />
+            </Card>
+
+            <Card title={t('panel.target')} icon="flame-outline">
+              <Text style={s.big}>
+                {client.plan.targetCalories} {t('common.kcal')}
+              </Text>
+              <Text style={theme.font.caption}>
+                {t(sourceKey)} · {t('common.proteinShort')} {client.plan.macros.proteinG}{' '}
+                {t('common.g')} · {t('common.carbsShort')} {client.plan.macros.carbsG}{' '}
+                {t('common.g')} · {t('common.fatShort')} {client.plan.macros.fatG} {t('common.g')}
+              </Text>
+            </Card>
+
+            <Card title={t('panel.weights')} icon="trending-down-outline">
+              {chart.length > 0 ? (
+                <WeightChart data={chart} from={chart[0].day} to={chart[chart.length - 1].day} />
+              ) : (
+                <Text style={theme.font.caption}>{t('panel.noData')}</Text>
+              )}
+            </Card>
+
+            <Card title={t('panel.foodLog')} icon="restaurant-outline">
+              {client.foodLog.length === 0 ? (
+                <Text style={theme.font.caption}>{t('panel.noData')}</Text>
+              ) : (
+                <>
+                  {client.foodLog.map((d) => (
+                    <View key={d.day} style={s.logRow}>
+                      <Text style={s.logDay}>{formatDay(d.day, locale)}</Text>
+                      <View style={s.track}>
+                        <View
+                          style={[
+                            s.fill,
+                            {
+                              width: `${Math.min(d.kcal / client.plan.targetCalories, 1) * 100}%`,
+                            },
+                          ]}
+                        />
+                      </View>
+                      <Text style={s.logValue}>
+                        {d.kcal} {t('common.kcal')}
+                      </Text>
+                    </View>
+                  ))}
+                  <Text style={theme.font.caption}>{t('panel.average', { kcal: avgKcal })}</Text>
+                </>
+              )}
+            </Card>
+
+            <Card title={t('panel.mealPlan')} icon="nutrition-outline">
+              {client.mealPlan ? (
+                <>
+                  {client.mealPlan.diet ? (
+                    <Row
+                      label={t('panel.diet')}
+                      value={t(`nutrition.setup.diets.${client.mealPlan.diet}`)}
+                    />
+                  ) : null}
+                  <Row
+                    label={t('panel.allergens')}
+                    value={
+                      client.mealPlan.allergens.length
+                        ? client.mealPlan.allergens
+                            .map((a) => t(`nutrition.setup.allergens.${a}`))
+                            .join(', ')
+                        : '—'
+                    }
+                  />
+                  {client.mealPlan.adjustedAt ? (
+                    <Text style={[theme.font.caption, { color: theme.colors.primary }]}>
+                      {t('consult.adjustedBadge')}
+                    </Text>
+                  ) : null}
+                </>
+              ) : (
+                <Text style={theme.font.caption}>{t('panel.noMealPlan')}</Text>
+              )}
+            </Card>
+
+            <Card title={t('panel.adjustTitle')} icon="create-outline">
+              <Field
+                label={t('panel.newTarget')}
+                value={target}
+                onChangeText={setTarget}
+                keyboardType="number-pad"
+                suffix={t('common.kcal')}
+                error={targetError}
+                hint={
+                  targetError ? null : (
+                    <Text style={theme.font.caption}>
+                      {t('panel.limits', { min: client.minCalories, max: client.maxCalories })}
+                    </Text>
+                  )
+                }
+              />
+              <Text style={[theme.font.caption, { fontWeight: '700' }]}>{t('panel.note')}</Text>
+              <TextInput
+                style={s.note}
+                value={note}
+                onChangeText={setNote}
+                multiline
+                maxLength={1000}
+              />
+              <Button
+                title={t('panel.apply')}
+                icon="checkmark-done"
+                disabled={!!targetError || busy}
+                onPress={() => save(Math.round(value!))}
+              />
+              {client.adjustedBy === 'nutritionist' ? (
+                <Button
+                  title={t('panel.resetAuto')}
+                  variant="ghost"
+                  disabled={busy}
+                  onPress={() => save(null)}
+                />
+              ) : null}
+            </Card>
+
+            {client.appointments.length > 0 ? (
+              <>
+                <Text style={theme.font.heading}>{t('panel.consultations')}</Text>
+                {client.appointments.map((a) => (
+                  <AppointmentCard key={a.id} appointment={a} title={a.clientName} />
+                ))}
+              </>
+            ) : null}
+          </>
+        ) : null}
+      </KeyboardScroll>
     </SafeAreaView>
   );
 }

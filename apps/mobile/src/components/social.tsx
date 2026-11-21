@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Image as CachedImage } from 'expo-image';
+import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useRef, useState, type ReactNode } from 'react';
 import {
@@ -13,6 +14,7 @@ import {
   View,
   type ImageStyle,
   type StyleProp,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
@@ -39,6 +41,7 @@ export const KIND_ICONS: Record<PostKind, IconName> = {
   running: 'walk-outline',
   cycling: 'bicycle-outline',
   other: 'sparkles-outline',
+  tip: 'bulb-outline',
 };
 
 const REPORT_REASONS: ReportReason[] = [
@@ -315,36 +318,41 @@ export function ActionSheet({
   }));
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel={t('common.close')}>
-        <Pressable style={[s.sheet, { paddingBottom: theme.spacing.lg + insets.bottom }]}>
-          <View style={s.handle} />
-          {title ? <Text style={s.title}>{title}</Text> : null}
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 4 }}>
-            {options?.map((o) => (
-              <Pressable
-                key={o.label}
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  s.option,
-                  pressed && { backgroundColor: theme.colors.surfaceAlt },
-                ]}
-                onPress={() => {
-                  onClose();
-                  o.onPress();
-                }}
-              >
-                <Ionicons
-                  name={o.icon}
-                  size={22}
-                  color={o.danger ? theme.colors.danger : theme.colors.primary}
-                />
-                <Text style={[s.label, o.danger && { color: theme.colors.danger }]}>{o.label}</Text>
-              </Pressable>
-            ))}
-            {children}
-          </ScrollView>
+      {/* Fereastra urca deasupra tastaturii cand se scrie in ea. */}
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
+        <Pressable style={s.backdrop} onPress={onClose} accessibilityLabel={t('common.close')}>
+          <Pressable style={[s.sheet, { paddingBottom: theme.spacing.lg + insets.bottom }]}>
+            <View style={s.handle} />
+            {title ? <Text style={s.title}>{title}</Text> : null}
+            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 4 }}>
+              {options?.map((o) => (
+                <Pressable
+                  key={o.label}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    s.option,
+                    pressed && { backgroundColor: theme.colors.surfaceAlt },
+                  ]}
+                  onPress={() => {
+                    onClose();
+                    o.onPress();
+                  }}
+                >
+                  <Ionicons
+                    name={o.icon}
+                    size={22}
+                    color={o.danger ? theme.colors.danger : theme.colors.primary}
+                  />
+                  <Text style={[s.label, o.danger && { color: theme.colors.danger }]}>
+                    {o.label}
+                  </Text>
+                </Pressable>
+              ))}
+              {children}
+            </ScrollView>
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -477,6 +485,25 @@ export function PostCard({
     name: { ...th.font.body, fontWeight: '800' },
     meta: { ...th.font.caption, fontSize: 12 },
     image: { width: '100%', aspectRatio: 1 },
+    tip: {
+      minHeight: 220,
+      padding: th.spacing.lg,
+      gap: th.spacing.sm,
+      justifyContent: 'center',
+    },
+    tipBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 999,
+      backgroundColor: 'rgba(255,255,255,0.18)',
+    },
+    tipBadgeText: { color: '#FFFFFF', fontWeight: '800', fontSize: 12, letterSpacing: 0.4 },
+    tipTitle: { color: '#FFFFFF', fontWeight: '900', fontSize: 24, lineHeight: 30 },
+    tipText: { color: 'rgba(255,255,255,0.94)', fontSize: 16, lineHeight: 23 },
     bigHeart: {
       position: 'absolute',
       top: 0,
@@ -665,7 +692,24 @@ export function PostCard({
         onPress={onImagePress}
         accessibilityLabel={post.caption || t(`social.kinds.${post.kind}`)}
       >
-        <RemoteImage mediaId={post.mediaId} style={s.image} />
+        {post.mediaId ? (
+          <RemoteImage mediaId={post.mediaId} style={s.image} />
+        ) : (
+          // Sfatul echipei: text pe fundal colorat, in locul fotografiei.
+          <LinearGradient
+            colors={theme.gradients.hero}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={s.tip}
+          >
+            <View style={s.tipBadge}>
+              <Ionicons name="bulb" size={14} color="#FFFFFF" />
+              <Text style={s.tipBadgeText}>{t('social.tipBadge')}</Text>
+            </View>
+            {post.title ? <Text style={s.tipTitle}>{post.title}</Text> : null}
+            <Text style={s.tipText}>{post.caption}</Text>
+          </LinearGradient>
+        )}
         <Animated.View
           pointerEvents="none"
           style={[s.bigHeart, { opacity: heart, transform: [{ scale: heartScale }] }]}
@@ -723,7 +767,7 @@ export function PostCard({
             </Text>
           </View>
         ) : null}
-        {post.caption ? <Text style={s.caption}>{post.caption}</Text> : null}
+        {post.caption && post.mediaId ? <Text style={s.caption}>{post.caption}</Text> : null}
         {post.meal && n ? (
           <View style={s.meal}>
             <Ionicons name="nutrition-outline" size={18} color={theme.colors.primaryStrong} />
@@ -758,10 +802,29 @@ export function PhotoGrid({ posts, onPress }: { posts: Post[]; onPress: (post: P
           onPress={() => onPress(p)}
           style={{ width: '32.6%', aspectRatio: 1 }}
         >
-          <RemoteImage
-            mediaId={p.mediaId}
-            style={{ width: '100%', height: '100%', borderRadius: 6 }}
-          />
+          {p.mediaId ? (
+            <RemoteImage
+              mediaId={p.mediaId}
+              style={{ width: '100%', height: '100%', borderRadius: 6 }}
+            />
+          ) : (
+            <LinearGradient
+              colors={theme.gradients.hero}
+              style={{
+                width: '100%',
+                height: '100%',
+                borderRadius: 6,
+                padding: 8,
+                justifyContent: 'center',
+                gap: 4,
+              }}
+            >
+              <Ionicons name="bulb" size={18} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontWeight: '800', fontSize: 12 }} numberOfLines={4}>
+                {p.title ?? p.caption}
+              </Text>
+            </LinearGradient>
+          )}
           {p.visibility === 'private' || p.status !== 'published' ? (
             <View
               style={{

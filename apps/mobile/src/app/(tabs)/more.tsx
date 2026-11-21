@@ -3,11 +3,11 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, type ArticleCard, type MySocial, type Post } from '@/api/client';
+import { api, type ArticleCard, type MySocial, type Post, type TrophyStatus } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
 import { ArticleRow } from '@/components/blog';
-import { GoalCard, ProfileHero } from '@/components/profile';
+import { GoalCard, ProfileHero, TrophyShelf } from '@/components/profile';
 import { ActionSheet, PhotoGrid } from '@/components/social';
 import { useToast } from '@/components/toast';
 import { Button, Card, Notice, Segmented } from '@/components/ui';
@@ -53,12 +53,17 @@ export default function More() {
   const [uploading, setUploading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [trophies, setTrophies] = useState<TrophyStatus[]>([]);
 
   const load = useCallback(async () => {
     if (!token) return;
     try {
       const me = await api.social.me(token);
       setSocial(me);
+      api
+        .myTrophies(token)
+        .then(setTrophies)
+        .catch(() => undefined);
       const page = await api.social.userPosts(token, me.profile.id);
       setAlbum(page.items);
       setCursor(page.nextCursor);
@@ -156,7 +161,24 @@ export default function More() {
             onAvatarPress={() => setAvatarMenu(true)}
             stats={[
               { label: t('profile.posts'), value: me.stats.posts, onPress: () => setTab('album') },
-              { label: t('profile.likes'), value: me.stats.likes },
+              {
+                label: t('profile.followers'),
+                value: me.stats.followers,
+                onPress: () =>
+                  router.push({
+                    pathname: '/follows/[id]',
+                    params: { id: me.id, type: 'followers', name: me.displayName },
+                  }),
+              },
+              {
+                label: t('profile.following'),
+                value: me.stats.following,
+                onPress: () =>
+                  router.push({
+                    pathname: '/follows/[id]',
+                    params: { id: me.id, type: 'following', name: me.displayName },
+                  }),
+              },
               {
                 label: t('profile.saved'),
                 value: social?.savedCount ?? 0,
@@ -189,6 +211,8 @@ export default function More() {
             hidden={!social.profile.showProgress}
           />
         ) : null}
+
+        <TrophyShelf trophies={trophies} own />
 
         <Button
           title={t('social.newPost')}

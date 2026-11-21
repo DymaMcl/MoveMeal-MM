@@ -13,6 +13,7 @@ import {
 } from '@movemeal/shared';
 import { router } from 'expo-router';
 import { useState } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { Text, View } from 'react-native';
 import { errorKey } from '@/api/errors';
 import { Chips } from '@/components/chips';
@@ -21,13 +22,14 @@ import {
   Notice,
   OptionCard,
   Screen,
+  Segmented,
   StepIndicator,
   Subtitle,
   Title,
 } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useWorkout } from '@/state/workout-state';
-import { useStyles } from '@/theme';
+import { useStyles, useTheme } from '@/theme';
 
 type Step = 'location' | 'schedule' | 'equipment' | 'health' | 'focus';
 
@@ -45,18 +47,23 @@ const DEFAULT_DAYS: Record<WorkoutLevel, Weekday[]> = {
   intense: [0, 1, 2, 3, 4],
 };
 
+type Place = 'home' | 'gym';
+
 function toggleIn<T>(list: T[], value: T): T[] {
   return list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
 }
 
 export default function WorkoutSetup() {
   const { t } = useI18n();
+  const theme = useTheme();
   const { program, save } = useWorkout();
   const initial = program?.preferences;
 
   const [location, setLocation] = useState<WorkoutLocation | undefined>(initial?.location);
   const [level, setLevel] = useState<WorkoutLevel | undefined>(initial?.level);
   const [days, setDays] = useState<Weekday[]>(initial?.days ?? []);
+  /** Antrenamentul mixt: zilele de acasa (celelalte sunt la sala). */
+  const [homeDays, setHomeDays] = useState<Weekday[]>(initial?.homeDays ?? []);
   const [equipment, setEquipment] = useState<Equipment[]>(initial?.equipment ?? []);
   const [sports, setSports] = useState<Sport[]>(initial?.sports ?? []);
   const [limitations, setLimitations] = useState<Limitation[]>(initial?.limitations ?? []);
@@ -69,12 +76,29 @@ export default function WorkoutSetup() {
     section: { gap: th.spacing.sm + 2, marginTop: th.spacing.sm },
     label: { ...th.font.heading },
     hint: { ...th.font.caption },
+    summary: {
+      flexDirection: 'row',
+      gap: th.spacing.sm,
+    },
+    summaryItem: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 6,
+      paddingVertical: th.spacing.sm + 2,
+      borderRadius: th.radius.md,
+      backgroundColor: th.colors.primarySoft,
+    },
+    summaryText: { fontWeight: '800', color: th.colors.primaryStrong },
+    dayRow: { flexDirection: 'row', alignItems: 'center', gap: th.spacing.md },
+    dayName: { ...th.font.body, fontWeight: '700', width: 96 },
   }));
 
   const steps: Step[] = [
     'location',
     'schedule',
-    ...(location === 'home' ? (['equipment'] as Step[]) : []),
+    ...(location === 'home' || location === 'mixed' ? (['equipment'] as Step[]) : []),
     'health',
     'focus',
   ];
@@ -88,13 +112,25 @@ export default function WorkoutSetup() {
           location,
           level,
           days,
-          equipment: location === 'home' ? equipment : [],
+          equipment: location === 'gym' ? [] : equipment,
+          ...(location === 'mixed' ? { homeDays: homeDays.filter((d) => days.includes(d)) } : {}),
           sports,
           limitations,
           focus,
         }
       : null;
-  const scheduleValid = !!prefs && !validatePreferences(prefs).includes('days_count');
+  const scheduleErrors = prefs ? validatePreferences(prefs) : [];
+  const scheduleValid =
+    !!prefs && !scheduleErrors.includes('days_count') && !scheduleErrors.includes('mixed_days');
+  const sortedDays = [...days].sort((a, b) => a - b);
+  const homeCount = sortedDays.filter((d) => homeDays.includes(d)).length;
+  const gymCount = sortedDays.length - homeCount;
+
+  function setPlace(day: Weekday, place: Place) {
+    setHomeDays((prev) =>
+      place === 'home' ? [...prev.filter((d) => d !== day), day] : prev.filter((d) => d !== day),
+    );
+  }
 
   const canContinue =
     (step === 'location' && !!location) ||
@@ -170,6 +206,13 @@ export default function WorkoutSetup() {
             selected={location === 'gym'}
             onPress={() => setLocation('gym')}
           />
+          <OptionCard
+            title={t('workout.setup.mixed')}
+            hint={t('workout.setup.mixedHint')}
+            icon="swap-horizontal"
+            selected={location === 'mixed'}
+            onPress={() => setLocation('mixed')}
+          />
         </>
       ) : null}
 
@@ -202,13 +245,53 @@ export default function WorkoutSetup() {
               />
             </View>
           ) : null}
+          {location === 'mixed' && range && sortedDays.length > 0 ? (
+            <View style={s.section}>
+              <Text style={s.label}>{t('workout.setup.mixedTitle')}</Text>
+              <Text style={s.hint}>{t('workout.setup.mixedDaysHint')}</Text>
+              <View style={s.summary}>
+                <View style={s.summaryItem}>
+                  <Ionicons name="home" size={18} color={theme.colors.primary} />
+                  <Text style={s.summaryText}>
+                    {t('workout.setup.homeCount', { n: homeCount })}
+                  </Text>
+                </View>
+                <View style={s.summaryItem}>
+                  <Ionicons name="barbell" size={18} color={theme.colors.primary} />
+                  <Text style={s.summaryText}>{t('workout.setup.gymCount', { n: gymCount })}</Text>
+                </View>
+              </View>
+              {sortedDays.map((d) => (
+                <View key={d} style={s.dayRow}>
+                  <Text style={s.dayName}>{t(`workout.weekdays.${d}`)}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Segmented
+                      options={[
+                        { value: 'home' as Place, label: t('workout.setup.home'), icon: 'home' },
+                        { value: 'gym' as Place, label: t('workout.setup.gym'), icon: 'barbell' },
+                      ]}
+                      value={homeDays.includes(d) ? 'home' : 'gym'}
+                      onChange={(place) => setPlace(d, place)}
+                    />
+                  </View>
+                </View>
+              ))}
+              {scheduleErrors.includes('mixed_days') && !scheduleErrors.includes('days_count') ? (
+                <Notice tone="info">{t('workout.setup.mixedInvalid')}</Notice>
+              ) : null}
+            </View>
+          ) : null}
         </>
       ) : null}
 
       {step === 'equipment' ? (
         <>
           <Title>{t('workout.setup.equipmentTitle')}</Title>
-          <Subtitle>{t('workout.setup.equipmentHint')}</Subtitle>
+          <Subtitle>
+            {location === 'mixed'
+              ? t('workout.setup.equipmentHintMixed')
+              : t('workout.setup.equipmentHint')}
+          </Subtitle>
           <Chips
             options={EQUIPMENT.map((e) => ({ value: e, label: t(`workout.setup.equipment.${e}`) }))}
             selected={equipment}

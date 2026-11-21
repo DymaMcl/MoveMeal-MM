@@ -1,14 +1,15 @@
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ComponentProps, ReactNode } from 'react';
+import { useEffect, useRef, type ComponentProps, type ComponentRef, type ReactNode } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   Text,
   TextInput,
   View,
+  type ScrollViewProps,
   type TextInputProps,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,21 +17,68 @@ import { useStyles, useTheme } from '@/theme';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
 
+/**
+ * Lista derulabila pentru formulare: cand apare tastatura, continutul se ridica deasupra ei
+ * (si pe iOS, si pe Android), iar campul atins este adus in zona vizibila.
+ */
+export function KeyboardScroll({
+  children,
+  footer,
+  ...props
+}: ScrollViewProps & { children: ReactNode; footer?: ReactNode }) {
+  const scrollRef = useRef<ComponentRef<typeof ScrollView>>(null);
+  const s = useStyles((t) => ({
+    flex: { flex: 1 },
+    footer: { padding: t.spacing.lg, paddingTop: t.spacing.sm, gap: t.spacing.sm },
+  }));
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      // Dupa ce lista s-a micsorat, campul activ este derulat deasupra tastaturii.
+      timer = setTimeout(() => {
+        const input = TextInput.State.currentlyFocusedInput();
+        const scroll = scrollRef.current;
+        const inner = scroll?.getInnerViewRef();
+        if (!input || !scroll || !inner) return;
+        input.measureLayout(
+          inner,
+          (_x, y) => scroll.scrollTo({ y: Math.max(0, y - 96), animated: true }),
+          () => undefined,
+        );
+      }, 60);
+    });
+    return () => {
+      sub.remove();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
+  return (
+    <KeyboardAvoidingView style={s.flex} behavior="padding">
+      <ScrollView
+        ref={scrollRef}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="interactive"
+        {...props}
+      >
+        {children}
+      </ScrollView>
+      {footer ? <View style={s.footer}>{footer}</View> : null}
+    </KeyboardAvoidingView>
+  );
+}
+
 export function Screen({ children, footer }: { children: ReactNode; footer?: ReactNode }) {
   const s = useStyles((t) => ({
     safe: { flex: 1, backgroundColor: t.colors.background },
-    flex: { flex: 1 },
     content: { padding: t.spacing.lg, gap: t.spacing.md, flexGrow: 1 },
-    footer: { padding: t.spacing.lg, paddingTop: t.spacing.sm, gap: t.spacing.sm },
   }));
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-          {children}
-        </ScrollView>
-        {footer ? <View style={s.footer}>{footer}</View> : null}
-      </KeyboardAvoidingView>
+      <KeyboardScroll contentContainerStyle={s.content} footer={footer}>
+        {children}
+      </KeyboardScroll>
     </SafeAreaView>
   );
 }
@@ -167,6 +215,7 @@ export function Field({
   icon,
   onClear,
   clearLabel,
+  style,
   ...input
 }: TextInputProps & {
   label: string;
@@ -205,7 +254,7 @@ export function Field({
         <TextInput
           placeholderTextColor={t.colors.textMuted}
           selectionColor={t.colors.primary}
-          style={s.input}
+          style={[s.input, style]}
           {...input}
         />
         {suffix ? <Text style={s.suffix}>{suffix}</Text> : null}

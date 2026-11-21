@@ -2,24 +2,30 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   Pressable,
-  ScrollView,
   Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { api, ApiError, type NutritionistCard, type Slot } from '@/api/client';
+import { Ionicons } from '@expo/vector-icons';
+import {
+  api,
+  ApiError,
+  type ConsultationOffer,
+  type NutritionistCard,
+  type Slot,
+} from '@/api/client';
+import { MonthCalendar } from '@/components/calendar';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
 import { useToast } from '@/components/toast';
-import { Button, Card, Notice } from '@/components/ui';
+import { Button, Card, Notice, KeyboardScroll } from '@/components/ui';
 import { localeOf, useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
-import { formatDay } from '@/state/dates';
+import { formatDay, isoDate } from '@/state/dates';
 import { useStyles, useTheme } from '@/theme';
 
 /** Solicitarea unei programari: ziua, ora, mesajul optional si acordul de acces (≤ 5 actiuni). */
@@ -33,6 +39,7 @@ export default function Book() {
   const locale = localeOf(language);
   const [nutritionist, setNutritionist] = useState<NutritionistCard | null>(null);
   const [slots, setSlots] = useState<Slot[] | null>(null);
+  const [offer, setOffer] = useState<ConsultationOffer | null>(null);
   const [day, setDay] = useState<string | null>(null);
   const [slot, setSlot] = useState<Slot | null>(null);
   const [note, setNote] = useState('');
@@ -42,10 +49,15 @@ export default function Book() {
 
   useEffect(() => {
     if (!token || !id) return;
-    Promise.all([api.nutritionists(token), api.slots(token, id)])
-      .then(([list, free]) => {
+    Promise.all([
+      api.nutritionists(token),
+      api.slots(token, id),
+      api.consultationOffer(token).catch(() => null),
+    ])
+      .then(([list, free, currentOffer]) => {
         setNutritionist(list.find((n) => n.id === id) ?? null);
         setSlots(free);
+        setOffer(currentOffer);
         setDay(free[0]?.day ?? null);
       })
       .catch((e) => setError(t(errorKey(e))));
@@ -57,6 +69,9 @@ export default function Book() {
     return [...map.entries()];
   }, [slots]);
   const times = days.find(([d]) => d === day)?.[1] ?? [];
+  // Ultima zi in care prima consultatie este gratuita (data locala).
+  const freeUntil = offer?.eligible ? isoDate(new Date(offer.expiresAt)) : null;
+  const slotIsFree = !!slot && !!offer?.eligible && slot.startsAt <= offer.expiresAt;
 
   async function send() {
     if (!token || !slot || !id) return;
@@ -129,111 +144,122 @@ export default function Book() {
     switchRow: { flexDirection: 'row', alignItems: 'center', gap: th.spacing.md },
     body: { ...th.font.body, flex: 1, fontSize: 14 },
     summary: { ...th.font.heading, color: th.colors.primary },
+    offer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: th.spacing.md,
+      padding: th.spacing.md,
+      borderRadius: th.radius.lg,
+      backgroundColor: th.colors.primary,
+    },
+    offerTitle: { color: th.colors.onPrimary, fontWeight: '800', fontSize: 16 },
+    offerText: { color: th.colors.onPrimary, opacity: 0.92, fontSize: 14, lineHeight: 19 },
+    legend: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: th.spacing.sm },
+    legendDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: th.colors.primary },
+    freeTag: {
+      alignSelf: 'flex-start',
+      paddingHorizontal: 10,
+      paddingVertical: 3,
+      borderRadius: 999,
+      backgroundColor: th.colors.primarySoft,
+      color: th.colors.primary,
+      fontWeight: '800',
+      fontSize: 12,
+      overflow: 'hidden',
+    },
   }));
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-          <ScreenHeader title={t('consult.book')} subtitle={nutritionist?.displayName} back />
-          {error ? <Notice>{error}</Notice> : null}
-          {!slots && !error ? (
-            <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
-          ) : null}
-          {slots && slots.length === 0 ? <Notice tone="info">{t('consult.noSlots')}</Notice> : null}
+      <KeyboardScroll contentContainerStyle={s.content}>
+        <ScreenHeader title={t('consult.book')} subtitle={nutritionist?.displayName} back />
+        {error ? <Notice>{error}</Notice> : null}
+        {!slots && !error ? (
+          <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
+        ) : null}
+        {slots && slots.length === 0 ? <Notice tone="info">{t('consult.noSlots')}</Notice> : null}
+        {freeUntil && slots && slots.length > 0 ? (
+          <View style={s.offer}>
+            <Ionicons name="gift" size={22} color={theme.colors.onPrimary} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.offerTitle}>{t('consult.offerTitle')}</Text>
+              <Text style={s.offerText}>
+                {t('consult.deadline', { date: formatDay(freeUntil, locale, true) })}
+              </Text>
+            </View>
+          </View>
+        ) : null}
 
-          {days.length > 0 ? (
-            <>
-              <Text style={s.label}>{t('consult.chooseDay')}</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={s.days}
-              >
-                {days.map(([d]) => {
-                  const active = d === day;
-                  const date = new Date(
-                    Number(d.slice(0, 4)),
-                    Number(d.slice(5, 7)) - 1,
-                    Number(d.slice(8)),
-                    12,
-                  );
-                  const weekday = date.toLocaleDateString(locale, { weekday: 'short' });
-                  const month = date.toLocaleDateString(locale, { month: 'short' });
-                  return (
-                    <Pressable
-                      key={d}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      style={[s.day, active && s.dayActive]}
-                      onPress={() => {
-                        setDay(d);
-                        setSlot(null);
-                      }}
-                    >
-                      <Text style={[s.dayWeek, active && { color: 'rgba(255,255,255,0.85)' }]}>
-                        {weekday}
-                      </Text>
-                      <Text style={[s.dayNum, active && { color: '#FFFFFF' }]}>
-                        {Number(d.slice(8))}
-                      </Text>
-                      <Text
-                        style={[s.dayWeek, { fontWeight: '500' }, active && { color: '#FFFFFF' }]}
-                        numberOfLines={1}
-                      >
-                        {month}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <Text style={s.label}>{t('consult.chooseTime')}</Text>
-              <View style={s.times}>
-                {times.map((x) => {
-                  const active = slot?.startsAt === x.startsAt;
-                  return (
-                    <Pressable
-                      key={x.startsAt}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      style={[s.time, active && s.timeActive]}
-                      onPress={() => setSlot(x)}
-                    >
-                      <Text style={[s.timeText, active && { color: '#FFFFFF' }]}>{x.time}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-
-              <Text style={s.label}>{t('consult.note')}</Text>
-              <TextInput
-                style={s.input}
-                value={note}
-                onChangeText={setNote}
-                placeholder={t('consult.notePlaceholder')}
-                placeholderTextColor={theme.colors.textMuted}
-                multiline
-                maxLength={500}
+        {days.length > 0 ? (
+          <>
+            <Text style={s.label}>{t('consult.chooseDay')}</Text>
+            <Card>
+              <MonthCalendar
+                available={days.map(([d]) => d)}
+                selected={day}
+                highlightUntil={freeUntil}
+                onSelect={(d) => {
+                  setDay(d);
+                  setSlot(null);
+                }}
               />
-
-              <Card>
-                <View style={s.switchRow}>
-                  <Text style={s.body}>{t('consult.share')}</Text>
-                  <Switch
-                    value={share}
-                    onValueChange={setShare}
-                    trackColor={{ true: theme.colors.primary, false: theme.colors.surfaceAlt }}
-                    thumbColor="#FFFFFF"
-                  />
+              {freeUntil ? (
+                <View style={s.legend}>
+                  <View style={s.legendDot} />
+                  <Text style={theme.font.caption}>{t('consult.freeLegend')}</Text>
                 </View>
-                <Text style={theme.font.caption}>{t('consult.accessText')}</Text>
-              </Card>
+              ) : null}
+            </Card>
+            {day && freeUntil && day > freeUntil ? (
+              <Notice tone="info">
+                {t('consult.afterDeadline', { date: formatDay(freeUntil, locale, true) })}
+              </Notice>
+            ) : null}
 
-              {slot && nutritionist ? (
+            <Text style={s.label}>{t('consult.chooseTime')}</Text>
+            <View style={s.times}>
+              {times.map((x) => {
+                const active = slot?.startsAt === x.startsAt;
+                return (
+                  <Pressable
+                    key={x.startsAt}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    style={[s.time, active && s.timeActive]}
+                    onPress={() => setSlot(x)}
+                  >
+                    <Text style={[s.timeText, active && { color: '#FFFFFF' }]}>{x.time}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            <Text style={s.label}>{t('consult.note')}</Text>
+            <TextInput
+              style={s.input}
+              value={note}
+              onChangeText={setNote}
+              placeholder={t('consult.notePlaceholder')}
+              placeholderTextColor={theme.colors.textMuted}
+              multiline
+              maxLength={500}
+            />
+
+            <Card>
+              <View style={s.switchRow}>
+                <Text style={s.body}>{t('consult.share')}</Text>
+                <Switch
+                  value={share}
+                  onValueChange={setShare}
+                  trackColor={{ true: theme.colors.primary, false: theme.colors.surfaceAlt }}
+                  thumbColor="#FFFFFF"
+                />
+              </View>
+              <Text style={theme.font.caption}>{t('consult.accessText')}</Text>
+            </Card>
+
+            {slot && nutritionist ? (
+              <View style={{ gap: 6 }}>
                 <Text style={s.summary}>
                   {t('consult.summary', {
                     day: formatDay(slot.day, locale, true),
@@ -241,17 +267,13 @@ export default function Book() {
                     min: nutritionist.slotMinutes,
                   })}
                 </Text>
-              ) : null}
-              <Button
-                title={t('consult.send')}
-                icon="send"
-                disabled={!slot || busy}
-                onPress={send}
-              />
-            </>
-          ) : null}
-        </ScrollView>
-      </KeyboardAvoidingView>
+                {slotIsFree ? <Text style={s.freeTag}>{t('consult.freeTag')}</Text> : null}
+              </View>
+            ) : null}
+            <Button title={t('consult.send')} icon="send" disabled={!slot || busy} onPress={send} />
+          </>
+        ) : null}
+      </KeyboardScroll>
     </SafeAreaView>
   );
 }

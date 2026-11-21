@@ -1,21 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  KeyboardAvoidingView,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, type LabelDraft, type LogMeal, type Product } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
 import { useToast } from '@/components/toast';
-import { Button, Card, Field, Notice, parseNumber } from '@/components/ui';
+import { Button, Card, Field, Notice, parseNumber, KeyboardScroll } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { pickImage } from '@/state/images';
@@ -200,135 +192,133 @@ export default function ProductEdit() {
 
   return (
     <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
-        <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
-          <ScreenHeader
-            title={editing ? t('quick.editProduct') : t('quick.newProduct')}
-            subtitle={t('quick.productSubtitle')}
-            back
-          />
+      <KeyboardScroll contentContainerStyle={s.content}>
+        <ScreenHeader
+          title={editing ? t('quick.editProduct') : t('quick.newProduct')}
+          subtitle={t('quick.productSubtitle')}
+          back
+        />
 
-          {!editing ? (
-            <View style={s.label}>
-              <Ionicons name="scan" size={28} color={theme.colors.primary} />
-              <View style={{ flex: 1, gap: 2 }}>
-                <Text style={[theme.font.heading, { color: theme.colors.primaryStrong }]}>
-                  {t('quick.readLabel')}
-                </Text>
-                <Text style={theme.font.caption}>
-                  {readDone ? t('quick.readLabelDone') : t('quick.readLabelHint')}
-                </Text>
-              </View>
-            </View>
-          ) : null}
-          {!editing ? (
-            reading ? (
-              <View style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}>
-                <ActivityIndicator color={theme.colors.primary} />
-                <Text style={theme.font.caption}>{t('quick.readingLabel')}</Text>
-              </View>
-            ) : (
-              <View style={s.grid}>
-                <View style={s.cell}>
-                  <Button
-                    title={t('photo.camera')}
-                    icon="camera"
-                    variant="secondary"
-                    onPress={() => readLabel('camera')}
-                  />
-                </View>
-                <View style={s.cell}>
-                  <Button
-                    title={t('quick.gallery')}
-                    icon="images-outline"
-                    variant="secondary"
-                    onPress={() => readLabel('gallery')}
-                  />
-                </View>
-              </View>
-            )
-          ) : null}
-
-          <Card title={t('quick.productInfo')} icon="cube-outline">
-            <Field
-              label={t('quick.productName')}
-              value={name}
-              onChangeText={setName}
-              placeholder={t('quick.productNamePlaceholder')}
-              maxLength={120}
-            />
-            <Field
-              label={t('quick.brandOptional')}
-              value={brand}
-              onChangeText={setBrand}
-              maxLength={80}
-            />
-            <Field
-              label={t('quick.barcodeOptional')}
-              value={barcode}
-              onChangeText={(v) => setBarcode(v.replace(/\D/g, ''))}
-              keyboardType="number-pad"
-              maxLength={14}
-              icon="barcode-outline"
-              error={barcode && !BARCODE.test(barcode) ? t('quick.barcodeInvalid') : null}
-            />
-          </Card>
-
-          <Card title={t('quick.per100Title')} icon="list-outline">
-            <View style={s.grid}>
-              {numberField(t('quick.energy'), kcal, setKcal, t('common.kcal'))}
-              {numberField(t('onboarding.summary.protein'), protein, setProtein, t('common.g'))}
-            </View>
-            <View style={s.grid}>
-              {numberField(t('onboarding.summary.carbs'), carbs, setCarbs, t('common.g'))}
-              {numberField(t('onboarding.summary.fat'), fat, setFat, t('common.g'))}
-            </View>
-            <Field
-              label={t('quick.servingOptional')}
-              value={serving}
-              onChangeText={setServing}
-              keyboardType="decimal-pad"
-              suffix={t('common.g')}
-              maxLength={6}
-              hint={<Text style={theme.font.caption}>{t('quick.servingFieldHint')}</Text>}
-            />
-            {tooMuch ? <Notice>{t('errors.productInvalid')}</Notice> : null}
-            {!tooMuch && mismatch ? (
-              <Notice tone="info">{t('quick.mismatch', { kcal: Math.round(macroKcal) })}</Notice>
-            ) : null}
-          </Card>
-
-          {error ? <Notice>{error}</Notice> : null}
-          <Button
-            title={editing ? t('common.save') : t('quick.saveProduct')}
-            icon="checkmark"
-            disabled={!valid || saving}
-            onPress={save}
-          />
-          {editing ? (
-            <Pressable
-              accessibilityRole="button"
-              onPress={remove}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 8,
-                alignSelf: 'center',
-                padding: 8,
-              }}
-            >
-              <Ionicons name="trash-outline" size={18} color={theme.colors.danger} />
-              <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>
-                {t('quick.deleteProduct')}
+        {!editing ? (
+          <View style={s.label}>
+            <Ionicons name="scan" size={28} color={theme.colors.primary} />
+            <View style={{ flex: 1, gap: 2 }}>
+              <Text style={[theme.font.heading, { color: theme.colors.primaryStrong }]}>
+                {t('quick.readLabel')}
               </Text>
-            </Pressable>
+              <Text style={theme.font.caption}>
+                {readDone ? t('quick.readLabelDone') : t('quick.readLabelHint')}
+              </Text>
+            </View>
+          </View>
+        ) : null}
+        {!editing ? (
+          reading ? (
+            <View style={{ alignItems: 'center', gap: 8, paddingVertical: 8 }}>
+              <ActivityIndicator color={theme.colors.primary} />
+              <Text style={theme.font.caption}>{t('quick.readingLabel')}</Text>
+            </View>
           ) : (
-            <Text style={[theme.font.caption, { fontSize: 12, textAlign: 'center' }]}>
-              {t('quick.privateNote')}
+            <View style={s.grid}>
+              <View style={s.cell}>
+                <Button
+                  title={t('photo.camera')}
+                  icon="camera"
+                  variant="secondary"
+                  onPress={() => readLabel('camera')}
+                />
+              </View>
+              <View style={s.cell}>
+                <Button
+                  title={t('quick.gallery')}
+                  icon="images-outline"
+                  variant="secondary"
+                  onPress={() => readLabel('gallery')}
+                />
+              </View>
+            </View>
+          )
+        ) : null}
+
+        <Card title={t('quick.productInfo')} icon="cube-outline">
+          <Field
+            label={t('quick.productName')}
+            value={name}
+            onChangeText={setName}
+            placeholder={t('quick.productNamePlaceholder')}
+            maxLength={120}
+          />
+          <Field
+            label={t('quick.brandOptional')}
+            value={brand}
+            onChangeText={setBrand}
+            maxLength={80}
+          />
+          <Field
+            label={t('quick.barcodeOptional')}
+            value={barcode}
+            onChangeText={(v) => setBarcode(v.replace(/\D/g, ''))}
+            keyboardType="number-pad"
+            maxLength={14}
+            icon="barcode-outline"
+            error={barcode && !BARCODE.test(barcode) ? t('quick.barcodeInvalid') : null}
+          />
+        </Card>
+
+        <Card title={t('quick.per100Title')} icon="list-outline">
+          <View style={s.grid}>
+            {numberField(t('quick.energy'), kcal, setKcal, t('common.kcal'))}
+            {numberField(t('onboarding.summary.protein'), protein, setProtein, t('common.g'))}
+          </View>
+          <View style={s.grid}>
+            {numberField(t('onboarding.summary.carbs'), carbs, setCarbs, t('common.g'))}
+            {numberField(t('onboarding.summary.fat'), fat, setFat, t('common.g'))}
+          </View>
+          <Field
+            label={t('quick.servingOptional')}
+            value={serving}
+            onChangeText={setServing}
+            keyboardType="decimal-pad"
+            suffix={t('common.g')}
+            maxLength={6}
+            hint={<Text style={theme.font.caption}>{t('quick.servingFieldHint')}</Text>}
+          />
+          {tooMuch ? <Notice>{t('errors.productInvalid')}</Notice> : null}
+          {!tooMuch && mismatch ? (
+            <Notice tone="info">{t('quick.mismatch', { kcal: Math.round(macroKcal) })}</Notice>
+          ) : null}
+        </Card>
+
+        {error ? <Notice>{error}</Notice> : null}
+        <Button
+          title={editing ? t('common.save') : t('quick.saveProduct')}
+          icon="checkmark"
+          disabled={!valid || saving}
+          onPress={save}
+        />
+        {editing ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={remove}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              alignSelf: 'center',
+              padding: 8,
+            }}
+          >
+            <Ionicons name="trash-outline" size={18} color={theme.colors.danger} />
+            <Text style={{ color: theme.colors.danger, fontWeight: '700' }}>
+              {t('quick.deleteProduct')}
             </Text>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </Pressable>
+        ) : (
+          <Text style={[theme.font.caption, { fontSize: 12, textAlign: 'center' }]}>
+            {t('quick.privateNote')}
+          </Text>
+        )}
+      </KeyboardScroll>
     </SafeAreaView>
   );
 }

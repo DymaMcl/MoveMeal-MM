@@ -6,13 +6,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, type Post, type PostKind } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ScreenHeader } from '@/components/app-menu';
-import { FilterRow, KIND_ICONS, POST_KINDS, PostCard } from '@/components/social';
+import { ActionSheet, FilterRow, KIND_ICONS, POST_KINDS, PostCard } from '@/components/social';
 import { Button, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
 import { useAppState } from '@/state/app-state';
 import { useStyles, useTheme } from '@/theme';
 
-type Filter = PostKind | 'all';
+/** following = doar persoanele urmarite; tip = sfaturile echipei. */
+type Filter = PostKind | 'all' | 'following';
+
+function query(filter: Filter): { kind: PostKind | null; scope: 'all' | 'following' } {
+  if (filter === 'following') return { kind: null, scope: 'following' };
+  return { kind: filter === 'all' ? null : filter, scope: 'all' };
+}
 
 /** Lenta comunitatii: fotografii cu mese si activitati sportive, ca idei pentru ceilalti. */
 export default function Community() {
@@ -26,14 +32,18 @@ export default function Community() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [composer, setComposer] = useState(false);
   const request = useRef(0);
+  // Nutritionistii si administratorii pot publica si sfaturi text.
+  const staff = session?.role === 'nutritionist' || session?.role === 'admin';
 
   const load = useCallback(
     async (kind: Filter) => {
       if (!token) return;
       const id = ++request.current;
       try {
-        const page = await api.social.feed(token, kind === 'all' ? null : kind);
+        const q = query(kind);
+        const page = await api.social.feed(token, q.kind, null, q.scope);
         if (id !== request.current) return;
         setItems(page.items);
         setCursor(page.nextCursor);
@@ -55,7 +65,8 @@ export default function Community() {
     if (!token || !cursor || loadingMore) return;
     setLoadingMore(true);
     try {
-      const page = await api.social.feed(token, filter === 'all' ? null : filter, cursor);
+      const q = query(filter);
+      const page = await api.social.feed(token, q.kind, cursor, q.scope);
       setItems((prev) => [...(prev ?? []), ...page.items]);
       setCursor(page.nextCursor);
     } catch {
@@ -145,6 +156,12 @@ export default function Community() {
             <FilterRow
               options={[
                 { value: 'all' as Filter, label: t('social.all'), icon: 'apps-outline' },
+                {
+                  value: 'following' as Filter,
+                  label: t('social.following'),
+                  icon: 'people-outline',
+                },
+                { value: 'tip' as Filter, label: t('social.tips'), icon: KIND_ICONS.tip },
                 ...POST_KINDS.map((k) => ({
                   value: k as Filter,
                   label: t(`social.kinds.${k}`),
@@ -165,13 +182,21 @@ export default function Community() {
             <ActivityIndicator color={theme.colors.primary} style={{ marginTop: 40 }} />
           ) : !error ? (
             <View style={s.empty}>
-              <Ionicons name="images-outline" size={48} color={theme.colors.textMuted} />
-              <Text style={s.emptyText}>{t('social.empty')}</Text>
-              <Button
-                title={t('social.first')}
-                icon="add"
-                onPress={() => router.push('/post/new')}
+              <Ionicons
+                name={filter === 'following' ? 'people-outline' : 'images-outline'}
+                size={48}
+                color={theme.colors.textMuted}
               />
+              <Text style={s.emptyText}>
+                {filter === 'following' ? t('social.followingEmpty') : t('social.empty')}
+              </Text>
+              {filter === 'following' ? null : (
+                <Button
+                  title={t('social.first')}
+                  icon="add"
+                  onPress={() => router.push('/post/new')}
+                />
+              )}
             </View>
           ) : undefined
         }
@@ -183,11 +208,28 @@ export default function Community() {
         accessibilityRole="button"
         accessibilityLabel={t('social.newPost')}
         style={({ pressed }) => [s.fab, pressed && { opacity: 0.9 }]}
-        onPress={() => router.push('/post/new')}
+        onPress={() => (staff ? setComposer(true) : router.push('/post/new'))}
       >
         <Ionicons name="add" size={24} color={theme.colors.onPrimary} />
         <Text style={s.fabText}>{t('social.newPost')}</Text>
       </Pressable>
+      <ActionSheet
+        visible={composer}
+        title={t('social.newPost')}
+        onClose={() => setComposer(false)}
+        options={[
+          {
+            label: t('social.composePhoto'),
+            icon: 'camera-outline',
+            onPress: () => router.push('/post/new'),
+          },
+          {
+            label: t('social.composeTip'),
+            icon: 'bulb-outline',
+            onPress: () => router.push('/post/tip'),
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }

@@ -8,6 +8,7 @@ import {
   type AdminSettings,
   type ArticleCard,
   type Audience,
+  type NewsItem,
 } from '@/api/client';
 import { errorKey } from '@/api/errors';
 import { ArticleRow } from '@/components/blog';
@@ -225,6 +226,7 @@ export function AnnouncementsSection({ token }: { token: string }) {
         />
         <Button title={t('admin.send')} icon="send" disabled={!valid || sending} onPress={send} />
       </Card>
+      <NewsCard token={token} />
       <Card title={t('admin.history')} icon="time-outline">
         {!history ? <ActivityIndicator color={theme.colors.primary} /> : null}
         {history?.length === 0 ? (
@@ -249,6 +251,128 @@ export function AnnouncementsSection({ token }: { token: string }) {
         ))}
       </Card>
     </>
+  );
+}
+
+/** Noutatile din „Ce e nou?”: functii noi (insigna rosie) si provocari (insigna aurie). */
+function NewsCard({ token }: { token: string }) {
+  const { t, language } = useI18n();
+  const theme = useTheme();
+  const toast = useToast();
+  const [kind, setKind] = useState<'feature' | 'challenge'>('feature');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [items, setItems] = useState<NewsItem[] | null>(null);
+
+  const load = useCallback(() => {
+    api
+      .news(token, language)
+      .then(setItems)
+      .catch(() => setItems([]));
+  }, [token, language]);
+
+  useEffect(load, [load]);
+
+  const valid = title.trim().length >= 3 && body.trim().length >= 10;
+
+  async function publish() {
+    setBusy(true);
+    try {
+      await api.admin.createNews(token, { kind, title: title.trim(), body: body.trim() });
+      toast(t('admin.newsPublished'));
+      setTitle('');
+      setBody('');
+      load();
+    } catch (e) {
+      toast(t(errorKey(e)));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function remove(item: NewsItem) {
+    Alert.alert(t('admin.newsDelete'), item.title, [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('journal.delete'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.admin.deleteNews(token, item.id);
+            load();
+          } catch (e) {
+            toast(t(errorKey(e)));
+          }
+        },
+      },
+    ]);
+  }
+
+  return (
+    <Card title={t('admin.newsTitle')} icon="sparkles-outline">
+      <Text style={theme.font.caption}>{t('admin.newsHint')}</Text>
+      <Segmented
+        options={[
+          {
+            value: 'feature' as const,
+            label: t('notifications.labels.feature'),
+            icon: 'checkmark-done',
+          },
+          {
+            value: 'challenge' as const,
+            label: t('notifications.labels.challenge'),
+            icon: 'medal',
+          },
+        ]}
+        value={kind}
+        onChange={setKind}
+      />
+      <Field
+        label={t('admin.announcementTitle')}
+        value={title}
+        onChangeText={setTitle}
+        maxLength={80}
+      />
+      <Field
+        label={t('admin.announcementBody')}
+        value={body}
+        onChangeText={setBody}
+        maxLength={600}
+        multiline
+        hint={<Text style={theme.font.caption}>{body.length}/600</Text>}
+      />
+      <Button
+        title={t('admin.newsPublish')}
+        icon="sparkles"
+        disabled={!valid || busy}
+        onPress={publish}
+      />
+      {!items ? <ActivityIndicator color={theme.colors.primary} /> : null}
+      {items?.map((n) => (
+        <View
+          key={n.id}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 }}
+        >
+          <Ionicons
+            name={n.kind === 'feature' ? 'checkmark-done-circle' : 'medal'}
+            size={22}
+            color={n.kind === 'feature' ? '#E11D48' : '#D97706'}
+          />
+          <Text style={[theme.font.body, { flex: 1, fontWeight: '600' }]} numberOfLines={2}>
+            {n.title}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('journal.delete')}
+            hitSlop={10}
+            onPress={() => remove(n)}
+          >
+            <Ionicons name="trash-outline" size={20} color={theme.colors.textMuted} />
+          </Pressable>
+        </View>
+      ))}
+    </Card>
   );
 }
 
