@@ -1,4 +1,12 @@
-import type { ActivityLevel, BodyData, EnergyPlan, EnergyProfile, Goal, Macros } from './types.ts';
+import type {
+  ActivityLevel,
+  BodyData,
+  EnergyPlan,
+  EnergyProfile,
+  Goal,
+  LossApproach,
+  Macros,
+} from './types.ts';
 
 /** Energia aproximativă stocată într-un kilogram de țesut adipos (kcal). */
 export const KCAL_PER_KG = 7700;
@@ -28,6 +36,19 @@ const PROTEIN_G_PER_KG: Record<Goal, number> = {
   maintain: 1.4,
 };
 const FAT_SHARE = 0.25;
+
+/** Ce parte din deficit se obtine prin exercitii, in functie de abordarea aleasa. */
+export const EXERCISE_SHARE: Record<LossApproach, number> = { diet: 0, mixed: 0.4, exercise: 1 };
+/**
+ * Arderea zilnica prin exercitii pe care o cerem cel mult: ~600 kcal inseamna aproximativ
+ * o ora de mers alert sau 45 de minute de alergare usoara - realist pentru un incepator.
+ */
+export const MAX_EXERCISE_KCAL = 600;
+
+/** Minute de mers alert / alergare usoara echivalente unei arderi date (aprox. 5 si 10 kcal/min). */
+export function exerciseMinutes(kcal: number): { walking: number; running: number } {
+  return { walking: Math.round(kcal / 5), running: Math.round(kcal / 10) };
+}
 
 /** Metabolismul bazal după formula Mifflin-St Jeor. */
 export function calculateBmr({ age, sex, heightCm, weightKg }: BodyData): number {
@@ -69,12 +90,20 @@ export function calculateMacros(calories: number, weightKg: number, goal: Goal):
 export function calculateEnergyPlan(profile: EnergyProfile): EnergyPlan {
   const bmr = calculateBmr(profile);
   const tdee = bmr * ACTIVITY_FACTORS[profile.activityLevel];
-  const raw = tdee + dailyAdjustment(profile, tdee);
+  const adjustment = dailyAdjustment(profile, tdee);
+  // La slabire, deficitul se imparte intre farfurie si miscare dupa abordarea aleasa.
+  const deficit = profile.goal === 'lose' ? Math.max(0, -adjustment) : 0;
+  const share = EXERCISE_SHARE[profile.lossApproach ?? 'diet'];
+  const exerciseKcal = Math.round(Math.min(MAX_EXERCISE_KCAL, deficit * share) / 10) * 10;
+  const raw = profile.goal === 'lose' ? tdee - (deficit - exerciseKcal) : tdee + adjustment;
   const targetCalories = Math.round(Math.max(MIN_CALORIES[profile.sex], raw) / 10) * 10;
+  const dietDeficit = profile.goal === 'lose' ? Math.max(0, Math.round(tdee) - targetCalories) : 0;
   return {
     bmr: Math.round(bmr),
     tdee: Math.round(tdee),
     targetCalories,
     macros: calculateMacros(targetCalories, profile.weightKg, profile.goal),
+    exerciseKcal,
+    dailyDeficit: dietDeficit + exerciseKcal,
   };
 }

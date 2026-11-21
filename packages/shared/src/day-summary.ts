@@ -42,6 +42,8 @@ export function projectDay(input: {
   tdee: number;
   weightKg: number;
   sex: Sex;
+  /** Calorii arse in plus prin miscare (activitati, pasi, antrenament). */
+  burnedKcal?: number;
   days?: number;
 }): DayProjection {
   const days = input.days ?? PROJECTION_DAYS;
@@ -50,7 +52,7 @@ export function projectDay(input: {
   const minimumKcal = MIN_CALORIES[input.sex];
   if (consumed < minimumKcal) return { status: 'below_minimum', minimumKcal };
 
-  const balanceKcal = Math.round(consumed - input.tdee);
+  const balanceKcal = Math.round(consumed - input.tdee - Math.max(0, input.burnedKcal ?? 0));
   const vsTargetKcal = Math.round(consumed - input.targetKcal);
   const tolerance = Math.max(ON_TARGET_KCAL, input.targetKcal * ON_TARGET_RATIO);
   const verdict: DayVerdict =

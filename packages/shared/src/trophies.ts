@@ -2,7 +2,8 @@
  * Trofeele pentru provocari. Conditiile se verifica pe server; aplicatia afiseaza trofeele
  * castigate in profil si progresul celor inca neobtinute.
  */
-export type TrophyId = 'first_post' | 'log_streak_7' | 'steps_10k_3' | 'workouts_10';
+export type TrophyId =
+  'first_post' | 'log_streak_7' | 'steps_10k_3' | 'workouts_10' | 'active_streak_5' | 'fasting_5';
 
 export type TrophyTier = 'bronze' | 'silver' | 'gold';
 
@@ -22,6 +23,8 @@ export const TROPHIES: TrophyDefinition[] = [
   { id: 'steps_10k_3', tier: 'gold', icon: 'footsteps', goal: 3 },
   { id: 'log_streak_7', tier: 'silver', icon: 'calendar', goal: 7 },
   { id: 'workouts_10', tier: 'gold', icon: 'barbell', goal: 10 },
+  { id: 'active_streak_5', tier: 'silver', icon: 'flame', goal: 5 },
+  { id: 'fasting_5', tier: 'bronze', icon: 'timer', goal: 5 },
   { id: 'first_post', tier: 'bronze', icon: 'camera', goal: 1 },
 ];
 

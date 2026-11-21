@@ -42,7 +42,18 @@ export class TrophiesService {
       `select count(*)::int as n from posts
        where user_id = app_user_id() and visibility = 'public' and status = 'published'`,
     );
+    // Zile cu miscare inregistrata (activitate sau antrenament bifat).
+    const active = await c.query<{ day: string }>(
+      `select to_char(day, 'YYYY-MM-DD') as day from activity_log where user_id = app_user_id()
+       union select to_char(day, 'YYYY-MM-DD') from workout_logs where user_id = app_user_id()`,
+    );
+    const fasts = await c.query<{ n: number }>(
+      `select count(*)::int as n from fasting_sessions where user_id = app_user_id()
+       and ended_at is not null and ended_at - started_at >= make_interval(hours => planned_hours)`,
+    );
     return {
+      active_streak_5: longestStreak(active.rows.map((r) => r.day)),
+      fasting_5: fasts.rows[0].n,
       steps_10k_3: longestStreak(steps.rows.map((r) => r.day)),
       log_streak_7: longestStreak(logged.rows.map((r) => r.day)),
       workouts_10: workouts.rows[0].n,

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { calculateBmr, calculateEnergyPlan, calculateMacros, MIN_CALORIES } from './energy.ts';
+import {
+  calculateBmr,
+  calculateEnergyPlan,
+  calculateMacros,
+  exerciseMinutes,
+  MAX_EXERCISE_KCAL,
+  MIN_CALORIES,
+} from './energy.ts';
 
 const male = { age: 25, sex: 'male' as const, heightCm: 180, weightKg: 80 };
 const female = { age: 30, sex: 'female' as const, heightCm: 165, weightKg: 60 };
@@ -71,5 +78,63 @@ describe('calculateMacros', () => {
     expect(m.fatG).toBe(69);
     const total = m.proteinG * 4 + m.fatG * 9 + m.carbsG * 4;
     expect(Math.abs(total - 2500)).toBeLessThan(10);
+  });
+});
+
+describe('abordarea slăbirii', () => {
+  // 5 kg în 10 săptămâni -> 550 kcal/zi deficit total
+  const base = {
+    ...male,
+    activityLevel: 'moderate' as const,
+    goal: 'lose' as const,
+    targetWeightKg: 75,
+    weeks: 10,
+  };
+  const tdee = 1805 * 1.55;
+
+  it('doar dieta: tot deficitul vine din alimentație, fără ardere cerută', () => {
+    const plan = calculateEnergyPlan({ ...base, lossApproach: 'diet' });
+    expect(plan.exerciseKcal).toBe(0);
+    expect(plan.targetCalories).toBe(Math.round((tdee - 550) / 10) * 10);
+  });
+
+  it('fără abordare aleasă se comportă ca dieta', () => {
+    expect(calculateEnergyPlan(base)).toEqual(
+      calculateEnergyPlan({ ...base, lossApproach: 'diet' }),
+    );
+  });
+
+  it('doar exerciții: mănânci cât cheltui, deficitul se arde prin mișcare', () => {
+    const plan = calculateEnergyPlan({ ...base, lossApproach: 'exercise' });
+    expect(plan.exerciseKcal).toBe(550);
+    expect(plan.targetCalories).toBe(Math.round(tdee / 10) * 10);
+  });
+
+  it('mixt: 40% din deficit prin exerciții, restul din alimentație', () => {
+    const plan = calculateEnergyPlan({ ...base, lossApproach: 'mixed' });
+    expect(plan.exerciseKcal).toBe(220);
+    expect(plan.targetCalories).toBe(Math.round((tdee - 330) / 10) * 10);
+    expect(plan.dailyDeficit).toBeGreaterThanOrEqual(540);
+  });
+
+  it('limitează arderea cerută prin exerciții la un nivel realist', () => {
+    const plan = calculateEnergyPlan({ ...base, targetWeightKg: 70, lossApproach: 'exercise' });
+    expect(plan.exerciseKcal).toBe(MAX_EXERCISE_KCAL);
+    expect(plan.dailyDeficit).toBeLessThan(1000);
+  });
+
+  it('nu cere exerciții la alte obiective', () => {
+    const plan = calculateEnergyPlan({
+      ...male,
+      activityLevel: 'light',
+      goal: 'maintain',
+      lossApproach: 'exercise',
+    });
+    expect(plan.exerciseKcal).toBe(0);
+    expect(plan.dailyDeficit).toBe(0);
+  });
+
+  it('estimează minutele de mișcare echivalente', () => {
+    expect(exerciseMinutes(300)).toEqual({ walking: 60, running: 30 });
   });
 });

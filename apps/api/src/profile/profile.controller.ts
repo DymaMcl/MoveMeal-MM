@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Put, UseGuards } from '@nestjs/common';
 import { AuthGuard, UserId } from '../auth/auth.guard.js';
-import { ProfileDto } from './profile.dto.js';
+import { LossApproachDto, ProfileDto } from './profile.dto.js';
 import { ProfileService } from './profile.service.js';
 
 @Controller('me/profile')
@@ -16,5 +16,11 @@ export class ProfileController {
   @Put()
   save(@UserId() userId: string, @Body() body: ProfileDto) {
     return this.profiles.save(userId, body);
+  }
+
+  /** Schimba doar abordarea slabirii; tinta stabilita de nutritionist ramane. */
+  @Put('loss-approach')
+  lossApproach(@UserId() userId: string, @Body() body: LossApproachDto) {
+    return this.profiles.setLossApproach(userId, body.lossApproach);
   }
 }

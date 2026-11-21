@@ -1,5 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { calculateMacros, type EnergyPlan, type EnergyProfile } from '@movemeal/shared';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  calculateMacros,
+  type EnergyPlan,
+  type EnergyProfile,
+  type LossApproach,
+} from '@movemeal/shared';
 import type pg from 'pg';
 import { DatabaseService } from '../database/database.service.js';
 import { EnergyService } from '../energy/energy.service.js';
@@ -19,6 +24,7 @@ interface ProfileRow {
   activity_level: Profile['activityLevel'];
   target_weight_kg: number | null;
   weeks: number | null;
+  loss_approach: Profile['lossApproach'] | null;
   calorie_target: number | null;
   calorie_target_by: 'adjustment' | 'nutritionist' | null;
   nutritionist_note: string | null;
@@ -35,11 +41,12 @@ function toProfile(row: ProfileRow): Profile {
     activityLevel: row.activity_level,
     ...(row.target_weight_kg !== null ? { targetWeightKg: row.target_weight_kg } : {}),
     ...(row.weeks !== null ? { weeks: row.weeks } : {}),
+    ...(row.loss_approach ? { lossApproach: row.loss_approach } : {}),
   };
 }
 
 const COLUMNS =
-  'name, age, sex, height_cm, weight_kg, goal, activity_level, target_weight_kg, weeks';
+  'name, age, sex, height_cm, weight_kg, goal, activity_level, target_weight_kg, weeks, loss_approach';
 
 export interface CurrentEnergy {
   profile: Profile;
@@ -81,12 +88,13 @@ export class ProfileService {
       // La modificarea profilului, tinta se recalculeaza (ajustarea anterioara nu mai e valabila).
       const { rows } = await c.query<ProfileRow>(
         `insert into profiles (user_id, ${COLUMNS})
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          on conflict (user_id) do update set
            name = excluded.name, age = excluded.age, sex = excluded.sex,
            height_cm = excluded.height_cm, weight_kg = excluded.weight_kg,
            goal = excluded.goal, activity_level = excluded.activity_level,
            target_weight_kg = excluded.target_weight_kg, weeks = excluded.weeks,
+           loss_approach = excluded.loss_approach,
            calorie_target = null, calorie_target_by = null, updated_at = now()
          returning ${COLUMNS}, ${EXTRA}`,
         [
@@ -100,10 +108,32 @@ export class ProfileService {
           dto.activityLevel,
           hasTarget ? dto.targetWeightKg : null,
           hasTarget ? dto.weeks : null,
+          dto.goal === 'lose' ? (dto.lossApproach ?? 'diet') : null,
         ],
       );
       return rows[0];
     });
+    return this.response(this.withPlan(row));
+  }
+
+  async setLossApproach(userId: string, approach: LossApproach) {
+    const row = await this.db.asUser(userId, async (c) => {
+      // O ajustare automata acceptata se refacea pe vechea abordare, deci se renunta la ea;
+      // tinta stabilita de nutritionist se pastreaza.
+      const { rows } = await c.query<ProfileRow>(
+        `update profiles set loss_approach = $1,
+           calorie_target = case when calorie_target_by = 'nutritionist' then calorie_target end,
+           calorie_target_by = case when calorie_target_by = 'nutritionist' then calorie_target_by end,
+           updated_at = now()
+         where user_id = app_user_id() and goal = 'lose'
+         returning ${COLUMNS}, ${EXTRA}`,
+        [approach],
+      );
+      return rows[0];
+    });
+    if (!row) {
+      throw new BadRequestException('Abordarea se alege doar pentru obiectivul de slabire.');
+    }
     return this.response(this.withPlan(row));
   }
 

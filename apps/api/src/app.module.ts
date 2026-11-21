@@ -9,6 +9,7 @@ import { FoodPhotoModule } from './food-photo/food-photo.module.js';
 import { HealthController } from './health/health.controller.js';
 import { ProfileModule } from './profile/profile.module.js';
 import { QuickLogModule } from './quick-log/quick-log.module.js';
+import { ActivityModule } from './activity/activity.module.js';
 import { EngagementModule } from './engagement/engagement.module.js';
 import { SettingsModule } from './settings/settings.service.js';
 import { SocialModule } from './social/social.module.js';
@@ -36,6 +37,7 @@ import { WorkoutModule } from './workout/workout.module.js';
     FoodPhotoModule,
     QuickLogModule,
     EngagementModule,
+    ActivityModule,
     SocialModule,
   ],
   controllers: [HealthController],

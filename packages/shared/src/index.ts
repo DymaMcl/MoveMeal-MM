@@ -9,3 +9,5 @@ export * from './body.ts';
 export * from './i18n/localize.ts';
 export * from './day-summary.ts';
 export * from './trophies.ts';
+export * from './activities.ts';
+export * from './fasting.ts';
