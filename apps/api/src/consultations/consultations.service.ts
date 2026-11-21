@@ -21,6 +21,8 @@ export interface NutritionistCard {
   services: string;
   priceMdl: number;
   slotMinutes: number;
+  /** Fotografia de profil (aceeasi ca in comunitate); null = initialele. */
+  avatarId: string | null;
 }
 
 export interface Slot {
@@ -110,6 +112,7 @@ interface NutritionistRow {
   services: string;
   price_mdl: number;
   slot_minutes: number;
+  avatar_id?: string | null;
 }
 
 export function toNutritionist(r: NutritionistRow): NutritionistCard {
@@ -123,6 +126,7 @@ export function toNutritionist(r: NutritionistRow): NutritionistCard {
     services: r.services,
     priceMdl: r.price_mdl,
     slotMinutes: r.slot_minutes,
+    avatarId: r.avatar_id ?? null,
   };
 }
 
@@ -138,8 +142,9 @@ export class ConsultationsService {
   /** Nutritionistii activi (rolul este verificat in tabela conturilor). */
   async nutritionists(): Promise<NutritionistCard[]> {
     const { rows } = await this.db.auth.query<NutritionistRow>(
-      `select np.* from nutritionist_profiles np
+      `select np.*, sp.avatar_media_id as avatar_id from nutritionist_profiles np
        join users u on u.id = np.user_id
+       left join social_profiles sp on sp.user_id = np.user_id
        where u.role = 'nutritionist' and u.blocked_at is null
        order by np.display_name`,
     );
@@ -276,7 +281,8 @@ export class ConsultationsService {
             n.id,
             new Date(requested),
             n.slotMinutes,
-            offer.eligible,
+            // Gratuita doar daca oferta este valabila si consultatia are loc pana la termen.
+            offer.eligible && requested <= new Date(offer.expiresAt).getTime(),
             clientName,
             (input.note ?? '').trim(),
           ],

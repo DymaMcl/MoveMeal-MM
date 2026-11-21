@@ -321,7 +321,7 @@ export class AdminService {
     const { rows } = await this.db.auth.query<{
       id: string;
       user_id: string;
-      media_id: string;
+      media_id: string | null;
       kind: string;
       caption: string;
       visibility: string;
@@ -408,7 +408,12 @@ export class AdminService {
 
   async deletePost(adminId: string, postId: string) {
     const post = await this.findPost(postId);
-    await this.db.auth.query('delete from media where id = $1', [post.media_id]);
+    // Fotografia sterge si postarea (cascada); sfaturile text nu au fotografie.
+    if (post.media_id) {
+      await this.db.auth.query('delete from media where id = $1', [post.media_id]);
+    } else {
+      await this.db.auth.query('delete from posts where id = $1', [postId]);
+    }
     await this.log(adminId, 'post_deleted', post.user_id, { postId });
   }
 
@@ -422,7 +427,7 @@ export class AdminService {
   private async findPost(postId: string) {
     const { rows } = await this.db.auth.query<{
       user_id: string;
-      media_id: string;
+      media_id: string | null;
       status: string;
       moderation: { verdict?: string } | null;
     }>('select user_id, media_id, status, moderation from posts where id = $1', [postId]);

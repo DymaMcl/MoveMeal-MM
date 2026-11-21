@@ -171,4 +171,41 @@ describe('Program de antrenament (e2e)', () => {
       await client.end();
     }
   });
+
+  it('genereaza programul mixt: zilele de acasa cu echipamentul ales, celelalte la sala', async () => {
+    const { auth } = await userWithProfile();
+    const res = await request(app.getHttpServer())
+      .put('/api/me/workout')
+      .set('Authorization', auth)
+      .send({
+        ...preferences,
+        location: 'mixed',
+        level: 'intense',
+        days: [0, 1, 2, 3, 4, 5],
+        homeDays: [5, 1, 3],
+        equipment: ['dumbbells'],
+      })
+      .expect(200);
+    expect(res.body.preferences.homeDays).toEqual([1, 3, 5]);
+    expect(
+      res.body.plan.sessions.map((s: { weekday: number; location: string }) => [
+        s.weekday,
+        s.location,
+      ]),
+    ).toEqual([
+      [0, 'gym'],
+      [1, 'home'],
+      [2, 'gym'],
+      [3, 'home'],
+      [4, 'gym'],
+      [5, 'home'],
+    ]);
+
+    // Toate zilele acasa (sau niciuna) nu este un program mixt valid.
+    await request(app.getHttpServer())
+      .put('/api/me/workout')
+      .set('Authorization', auth)
+      .send({ ...preferences, location: 'mixed', days: [0, 2, 4], homeDays: [0, 2, 4] })
+      .expect(400);
+  });
 });

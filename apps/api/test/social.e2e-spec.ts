@@ -25,6 +25,9 @@ function geminiReply(text: unknown) {
   };
 }
 
+/** Titlu unic, ca anuntul de test sa poata fi sters de la toti destinatarii. */
+const ANNOUNCEMENT = `Test automat ${randomUUID().slice(0, 8)}`;
+
 describe('Comunitatea, blogul si administrarea (e2e, Gemini simulat)', () => {
   let app: INestApplication<App>;
   let owner: pg.Client;
@@ -128,6 +131,12 @@ describe('Comunitatea, blogul si administrarea (e2e, Gemini simulat)', () => {
   });
 
   afterAll(async () => {
+    // Anuntul de test ajunge la toate conturile (si la cele reale): se sterge de peste tot.
+    await owner.query(
+      `delete from notifications where kind = 'announcement' and payload->>'title' = $1`,
+      [ANNOUNCEMENT],
+    );
+    await owner.query(`delete from admin_log where details->>'title' = $1`, [ANNOUNCEMENT]);
     // Parametrii modificati in teste revin la valorile implicite.
     await owner.query(
       `update system_settings set value = case key
@@ -557,7 +566,7 @@ describe('Comunitatea, blogul si administrarea (e2e, Gemini simulat)', () => {
     const sent = await http()
       .post('/api/admin/announcements')
       .set('Authorization', admin.auth)
-      .send({ title: 'Provocarea lunii', body: '10 000 de pasi pe zi!', audience: 'all' })
+      .send({ title: ANNOUNCEMENT, body: 'Anunt trimis de testele automate.', audience: 'all' })
       .expect(201);
     expect(sent.body.recipients).toBeGreaterThan(1);
     const notes = await http()
@@ -566,7 +575,7 @@ describe('Comunitatea, blogul si administrarea (e2e, Gemini simulat)', () => {
       .expect(200);
     expect(notes.body.items[0]).toMatchObject({
       kind: 'announcement',
-      payload: { title: 'Provocarea lunii' },
+      payload: { title: ANNOUNCEMENT },
     });
 
     // Limita zilnica de postari si dezactivarea comunitatii.

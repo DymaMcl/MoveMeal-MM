@@ -95,9 +95,28 @@ export class FeedQueryDto {
   @MaxLength(80)
   cursor?: string;
 
+  /** Tipul postarii; „tip” = sfaturile echipei (nutritionisti si administratori). */
   @IsOptional()
-  @IsIn(POST_KINDS)
-  kind?: (typeof POST_KINDS)[number];
+  @IsIn([...POST_KINDS, 'tip'])
+  kind?: (typeof POST_KINDS)[number] | 'tip';
+
+  /** following = doar persoanele urmarite (si propriile postari). */
+  @IsOptional()
+  @IsIn(['all', 'following'])
+  scope?: 'all' | 'following';
+}
+
+/** Sfat text publicat de un nutritionist sau administrator (fara fotografie). */
+export class TipDto {
+  @IsString()
+  @MinLength(3)
+  @MaxLength(80)
+  title!: string;
+
+  @IsString()
+  @MinLength(10)
+  @MaxLength(500)
+  caption!: string;
 }
 
 export class SocialProfileDto {

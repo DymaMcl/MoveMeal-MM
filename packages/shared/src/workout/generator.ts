@@ -6,6 +6,7 @@ import type {
   MuscleGroup,
   PlanWarning,
   Prescription,
+  SessionLocation,
   SessionTemplate,
   Weekday,
   WorkoutLevel,
@@ -18,7 +19,7 @@ import type {
 export const LEVEL_DAYS: Record<WorkoutLevel, { min: number; max: number }> = {
   light: { min: 2, max: 3 },
   moderate: { min: 3, max: 4 },
-  intense: { min: 5, max: 5 },
+  intense: { min: 5, max: 6 },
 };
 
 export const MAX_FOCUS_GROUPS = 2;
@@ -26,7 +27,11 @@ export const MAX_FOCUS_GROUPS = 2;
 const MAX_FOCUS_EXTRAS_PER_SESSION = 2;
 
 export type PreferencesError =
-  'days_count' | 'duplicate_days' | 'too_many_focus_groups' | 'invalid_day';
+  | 'days_count'
+  | 'duplicate_days'
+  | 'too_many_focus_groups'
+  | 'invalid_day'
+  | 'mixed_days';
 
 /** Verifica preferintele; intoarce lista de probleme (goala daca sunt valide). */
 export function validatePreferences(prefs: WorkoutPreferences): PreferencesError[] {
@@ -36,6 +41,16 @@ export function validatePreferences(prefs: WorkoutPreferences): PreferencesError
   if (new Set(prefs.days).size !== prefs.days.length) errors.push('duplicate_days');
   if (prefs.days.length < min || prefs.days.length > max) errors.push('days_count');
   if (prefs.focus.length > MAX_FOCUS_GROUPS) errors.push('too_many_focus_groups');
+  if (prefs.location === 'mixed') {
+    // Cel putin o zi acasa si una la sala, toate dintre zilele de antrenament.
+    const home = prefs.homeDays ?? [];
+    const valid =
+      new Set(home).size === home.length &&
+      home.every((d) => prefs.days.includes(d)) &&
+      home.length >= 1 &&
+      home.length < prefs.days.length;
+    if (!valid) errors.push('mixed_days');
+  }
   return errors;
 }
 
@@ -132,15 +147,30 @@ function splitFor(daysCount: number): SessionTemplate[] {
   if (daysCount <= 2) return ['full_a', 'full_b'].slice(0, daysCount) as SessionTemplate[];
   if (daysCount === 3) return ['full_a', 'full_b', 'full_c'];
   if (daysCount === 4) return ['upper', 'lower', 'upper', 'lower'];
-  return ['push', 'pull', 'legs', 'upper', 'lower'];
+  if (daysCount === 5) return ['push', 'pull', 'legs', 'upper', 'lower'];
+  return ['push', 'pull', 'legs', 'push', 'pull', 'legs'];
 }
 
 // ---------------------------------------------------------------------------
 // Filtrarea exercitiilor
 
-export function isAvailable(exercise: Exercise, prefs: WorkoutPreferences): boolean {
+/** Locul sedintei din ziua data (la antrenamentul mixt, dupa zilele alese pentru acasa). */
+export function sessionLocation(prefs: WorkoutPreferences, weekday: Weekday): SessionLocation {
+  if (prefs.location === 'mixed') return prefs.homeDays?.includes(weekday) ? 'home' : 'gym';
+  return prefs.location;
+}
+
+/**
+ * Exercitiul se poate face in locul dat: la sala exista tot echipamentul; acasa doar cel ales.
+ * Fara loc explicit: locul preferintelor (la antrenamentul mixt, varianta de acasa).
+ */
+export function isAvailable(
+  exercise: Exercise,
+  prefs: WorkoutPreferences,
+  where: SessionLocation = prefs.location === 'gym' ? 'gym' : 'home',
+): boolean {
   if (exercise.stresses.some((s) => prefs.limitations.includes(s))) return false;
-  if (prefs.location === 'gym') return true;
+  if (where === 'gym') return true;
   return exercise.requires.some((option) =>
     option.every((item) => item !== 'gym' && prefs.equipment.includes(item)),
   );
@@ -161,7 +191,7 @@ function matches(exercise: Exercise, slot: Slot): boolean {
  * Cat de potrivit este echipamentul (0 = cel mai potrivit). La sala se prefera aparatele si
  * greutatile libere; acasa, greutatile libere inaintea benzilor si a greutatii corpului.
  */
-function equipmentRank(exercise: Exercise, location: WorkoutPreferences['location']): number {
+function equipmentRank(exercise: Exercise, location: SessionLocation): number {
   const ranks = exercise.requires.map((option) => {
     if (option.length === 0) return 3;
     if (option.includes('gym')) return location === 'gym' ? 0 : 9;
@@ -175,14 +205,19 @@ function equipmentRank(exercise: Exercise, location: WorkoutPreferences['locatio
  * Candidatii pentru un slot, ordonati: tiparul preferat, echipamentul potrivit locului,
  * apoi dificultatea cea mai apropiata de nivel.
  */
-function candidates(slot: Slot, pool: Exercise[], prefs: WorkoutPreferences): Exercise[] {
+function candidates(
+  slot: Slot,
+  pool: Exercise[],
+  prefs: WorkoutPreferences,
+  where: SessionLocation,
+): Exercise[] {
   const target = PREFERRED_DIFFICULTY[prefs.level];
   return pool
     .filter((e) => matches(e, slot) && e.difficulty <= MAX_DIFFICULTY[prefs.level])
     .sort(
       (a, b) =>
         slot.patterns.indexOf(a.pattern) - slot.patterns.indexOf(b.pattern) ||
-        equipmentRank(a, prefs.location) - equipmentRank(b, prefs.location) ||
+        equipmentRank(a, where) - equipmentRank(b, where) ||
         Math.abs(a.difficulty - target) - Math.abs(b.difficulty - target) ||
         a.id.localeCompare(b.id),
     );
@@ -257,7 +292,11 @@ export function generateWorkoutPlan(prefs: WorkoutPreferences, goal: Goal): Work
 
   const days = [...prefs.days].sort((a, b) => a - b);
   const templates = splitFor(days.length);
-  const pool = EXERCISES.filter((e) => isAvailable(e, prefs));
+  // Exercitiile posibile acasa si la sala (la antrenamentul mixt se folosesc ambele).
+  const pools: Record<SessionLocation, Exercise[]> = {
+    home: EXERCISES.filter((e) => isAvailable(e, prefs, 'home')),
+    gym: EXERCISES.filter((e) => isAvailable(e, prefs, 'gym')),
+  };
   const legSports = prefs.sports.some((s) => LEG_SPORTS.has(s));
   const swimming = prefs.sports.includes('swimming');
 
@@ -271,6 +310,8 @@ export function generateWorkoutPlan(prefs: WorkoutPreferences, goal: Goal): Work
 
   const sessions: WorkoutSession[] = days.map((weekday, index) => {
     const template = templates[index];
+    const where = sessionLocation(prefs, weekday);
+    const pool = pools[where];
     let slots = TEMPLATES[template];
     if (legSports) {
       // Cei care alearga, pedaleaza sau joaca fotbal pastreaza un singur exercitiu accesoriu pentru picioare.
@@ -291,12 +332,15 @@ export function generateWorkoutPlan(prefs: WorkoutPreferences, goal: Goal): Work
 
     const used = new Set<string>();
     const pick = (slot: Slot): Exercise | undefined => {
-      let list = candidates(slot, pool, prefs).filter((e) => !used.has(e.id));
+      let list = candidates(slot, pool, prefs, where).filter((e) => !used.has(e.id));
       if (list.length === 0 && slot.fallback) {
         // Nicio varianta potrivita (de exemplu din cauza limitarilor): alt exercitiu pentru aceleasi grupe.
-        list = candidates({ patterns: ALL_PATTERNS, groups: slot.fallback }, pool, prefs).filter(
-          (e) => !used.has(e.id),
-        );
+        list = candidates(
+          { patterns: ALL_PATTERNS, groups: slot.fallback },
+          pool,
+          prefs,
+          where,
+        ).filter((e) => !used.has(e.id));
       }
       if (list.length === 0) return undefined;
       // Preferam exercitiile folosite cel mai rar in saptamana; la egalitate, ordinea de calitate.
@@ -331,7 +375,7 @@ export function generateWorkoutPlan(prefs: WorkoutPreferences, goal: Goal): Work
       extras += 1;
     }
 
-    return { weekday, template, exercises };
+    return { weekday, location: where, template, exercises };
   });
 
   return { sessions, warnings: [...warnings] };

@@ -187,7 +187,7 @@ describe('Roluri, programari la nutritionist si administrare (e2e)', () => {
       .set('Authorization', user.auth)
       .expect(200);
     expect(userInbox.body.items[0].kind).toBe('appointment_confirmed');
-    expect(userInbox.body.unread).toBe(1);
+    expect(userInbox.body.sections.personal).toBe(1);
 
     // Reprogramare de catre nutritionist, apoi anulare de catre utilizator.
     const slots = await http()
@@ -402,5 +402,49 @@ describe('Roluri, programari la nutritionist si administrare (e2e)', () => {
         .send(before.body)
         .expect(200);
     }
+  });
+
+  it('consultatia este gratuita doar daca are loc pana la termenul ofertei', async () => {
+    const n = await nutritionist();
+    await http()
+      .put('/api/nutritionist/profile')
+      .set('Authorization', n.auth)
+      .send({
+        displayName: 'Dr. Termen Test',
+        title: 'Nutritionist licentiat',
+        bio: 'Bio',
+        qualifications: 'Licenta in nutritie',
+        experienceYears: 5,
+        services: 'Consultatie initiala',
+        priceMdl: 400,
+        slotMinutes: 45,
+      })
+      .expect(200);
+
+    // Contul are 29 de zile: oferta de 30 de zile expira in aproximativ o zi.
+    const late = await account('user', 'Ana');
+    await owner.query("update users set created_at = now() - interval '29 days' where id = $1", [
+      late.id,
+    ]);
+    const offer = await http()
+      .get('/api/me/consultation-offer')
+      .set('Authorization', late.auth)
+      .expect(200);
+    expect(offer.body.eligible).toBe(true);
+
+    const slots = await http()
+      .get(`/api/nutritionists/${n.id}/slots`)
+      .set('Authorization', late.auth)
+      .expect(200);
+    const after = (slots.body as { startsAt: string }[]).find(
+      (x) => x.startsAt > offer.body.expiresAt,
+    );
+    expect(after).toBeDefined();
+    const booked = await http()
+      .post('/api/me/appointments')
+      .set('Authorization', late.auth)
+      .send({ nutritionistId: n.id, startsAt: after!.startsAt })
+      .expect(201);
+    expect(booked.body.free).toBe(false);
   });
 });

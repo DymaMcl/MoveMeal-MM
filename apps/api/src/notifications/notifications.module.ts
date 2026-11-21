@@ -1,7 +1,19 @@
-import { Controller, Get, HttpCode, Module, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Module, Post, UseGuards } from '@nestjs/common';
+import { IsIn, IsOptional } from 'class-validator';
 import { AuthGuard, UserId } from '../auth/auth.guard.js';
 import { AuthModule } from '../auth/auth.module.js';
-import { NotificationsService } from './notifications.service.js';
+import {
+  NotificationsService,
+  SECTIONS,
+  type NotificationSection,
+} from './notifications.service.js';
+
+export class ReadNotificationsDto {
+  /** Lipsa = toate sectiunile. */
+  @IsOptional()
+  @IsIn(SECTIONS)
+  section?: NotificationSection;
+}
 
 @Controller('me/notifications')
 @UseGuards(AuthGuard)
@@ -15,8 +27,8 @@ export class NotificationsController {
 
   @Post('read')
   @HttpCode(204)
-  async read(@UserId() userId: string): Promise<void> {
-    await this.notifications.markAllRead(userId);
+  async read(@UserId() userId: string, @Body() body: ReadNotificationsDto): Promise<void> {
+    await this.notifications.markRead(userId, body?.section);
   }
 }
 

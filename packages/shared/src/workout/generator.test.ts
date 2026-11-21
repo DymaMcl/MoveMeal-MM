@@ -201,3 +201,61 @@ describe('alegerea exercitiilor potrivite', () => {
     expect(plan.warnings).not.toContain('missing_slots');
   });
 });
+
+describe('antrenamentul mixt (acasa si la sala)', () => {
+  const mixed: WorkoutPreferences = {
+    ...base,
+    location: 'mixed',
+    level: 'intense',
+    days: [0, 1, 2, 3, 4, 5],
+    homeDays: [1, 3, 5],
+    equipment: ['dumbbells'],
+  };
+
+  it('valideaza zilele de acasa: cel putin una acasa si una la sala, dintre zilele alese', () => {
+    expect(validatePreferences(mixed)).toEqual([]);
+    expect(validatePreferences({ ...mixed, homeDays: [] })).toContain('mixed_days');
+    expect(validatePreferences({ ...mixed, homeDays: [...mixed.days] })).toContain('mixed_days');
+    expect(validatePreferences({ ...mixed, homeDays: [6] })).toContain('mixed_days');
+    expect(validatePreferences({ ...mixed, homeDays: undefined })).toContain('mixed_days');
+  });
+
+  it('acasa foloseste doar echipamentul ales, iar la sala si aparatele', () => {
+    const plan = generateWorkoutPlan(mixed, 'muscle');
+    expect(plan.sessions).toHaveLength(6);
+    for (const session of plan.sessions) {
+      const expected = mixed.homeDays!.includes(session.weekday) ? 'home' : 'gym';
+      expect(session.location).toBe(expected);
+      if (expected === 'home') {
+        for (const p of session.exercises) {
+          expect(isAvailable(getExercise(p.exerciseId)!, mixed, 'home')).toBe(true);
+        }
+      }
+    }
+    // La sala apar si exercitii care cer aparate.
+    const gymOnly = plan.sessions
+      .filter((s) => s.location === 'gym')
+      .flatMap((s) => s.exercises)
+      .some((p) => getExercise(p.exerciseId)!.requires.every((o) => o.includes('gym')));
+    expect(gymOnly).toBe(true);
+  });
+
+  it('6 zile: push / pull / legs de doua ori', () => {
+    const plan = generateWorkoutPlan(mixed, 'muscle');
+    expect(plan.sessions.map((s) => s.template)).toEqual([
+      'push',
+      'pull',
+      'legs',
+      'push',
+      'pull',
+      'legs',
+    ]);
+  });
+
+  it('programele obisnuite au aceeasi locatie in toate sedintele', () => {
+    const home = generateWorkoutPlan({ ...base, location: 'home', equipment: ['dumbbells'] }, 'lose');
+    expect(home.sessions.every((s) => s.location === 'home')).toBe(true);
+    const gym = generateWorkoutPlan(base, 'lose');
+    expect(gym.sessions.every((s) => s.location === 'gym')).toBe(true);
+  });
+});

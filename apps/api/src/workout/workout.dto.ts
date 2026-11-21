@@ -16,6 +16,7 @@ import {
   IsBoolean,
   IsIn,
   IsInt,
+  IsOptional,
   IsString,
   Matches,
   Max,
@@ -23,7 +24,7 @@ import {
   Min,
 } from 'class-validator';
 
-const LOCATIONS: WorkoutLocation[] = ['home', 'gym'];
+const LOCATIONS: WorkoutLocation[] = ['home', 'gym', 'mixed'];
 const LEVELS: WorkoutLevel[] = ['light', 'moderate', 'intense'];
 const EQUIPMENT: Equipment[] = ['dumbbells', 'kettlebell', 'bands', 'pullup_bar', 'bench'];
 const SPORTS: Sport[] = ['running', 'cycling', 'swimming', 'football', 'other'];
@@ -43,6 +44,15 @@ export class WorkoutPreferencesDto implements WorkoutPreferences {
   @Min(0, { each: true })
   @Max(6, { each: true })
   days!: Weekday[];
+
+  /** Antrenamentul mixt: zilele de acasa (celelalte zile sunt la sala). */
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  homeDays?: Weekday[];
 
   @IsArray()
   @ArrayUnique()

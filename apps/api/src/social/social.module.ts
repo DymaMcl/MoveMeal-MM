@@ -18,6 +18,7 @@ import type { Response } from 'express';
 import { AiModule } from '../ai/ai.module.js';
 import { AuthGuard, Roles, UserId, UserRole } from '../auth/auth.guard.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { EngagementModule } from '../engagement/engagement.module.js';
 import type { Role } from '../auth/auth.service.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { BlogService } from './blog.service.js';
@@ -33,6 +34,7 @@ import {
   SocialProfileDto,
   ToggleDto,
   UpdatePostDto,
+  TipDto,
 } from './social.dto.js';
 
 /** Fotografiile; accesul este verificat la fiecare cerere (politica RLS sau rolul de administrator). */
@@ -121,6 +123,13 @@ export class CommunityController {
   @Post('posts')
   create(@UserId() userId: string, @Body() body: CreatePostDto) {
     return this.community.create(userId, body);
+  }
+
+  /** Sfaturile echipei: doar nutritionistii si administratorii. */
+  @Post('posts/tip')
+  @Roles('nutritionist', 'admin')
+  createTip(@UserId() userId: string, @Body() body: TipDto) {
+    return this.community.createTip(userId, body);
   }
 
   @Get('posts/:id')
@@ -236,7 +245,7 @@ export class BlogController {
 }
 
 @Module({
-  imports: [AuthModule, AiModule, NotificationsModule],
+  imports: [AuthModule, AiModule, NotificationsModule, EngagementModule],
   controllers: [MediaController, CommunityController, BlogController],
   providers: [MediaService, CommunityService, BlogService],
   exports: [CommunityService, BlogService],

@@ -8,6 +8,7 @@ import {
   type WorkoutPreferences,
 } from '@movemeal/shared';
 import { DatabaseService } from '../database/database.service.js';
+import { TrophiesService } from '../engagement/trophies.service.js';
 
 export interface WorkoutProgram {
   preferences: WorkoutPreferences;
@@ -19,7 +20,10 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 @Injectable()
 export class WorkoutService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(
+    private readonly db: DatabaseService,
+    private readonly trophies: TrophiesService,
+  ) {}
 
   async get(userId: string): Promise<WorkoutProgram> {
     const row = await this.db.asUser(userId, async (c) => {
@@ -50,10 +54,13 @@ export class WorkoutService {
       if (profile.rowCount === 0) {
         throw new NotFoundException('Completeaza mai intai profilul.');
       }
+      const { homeDays, ...rest } = preferences;
       const prefs: WorkoutPreferences = {
-        ...preferences,
+        ...rest,
         // La sala echipamentul de acasa nu conteaza.
         equipment: preferences.location === 'gym' ? [] : preferences.equipment,
+        // Zilele de acasa conteaza doar la antrenamentul mixt.
+        ...(preferences.location === 'mixed' ? { homeDays: [...(homeDays ?? [])].sort((a, b) => a - b) } : {}),
       };
       const plan = generateWorkoutPlan(prefs, profile.rows[0].goal);
       const { rows } = await c.query<{ created_at: Date }>(
@@ -97,5 +104,7 @@ export class WorkoutService {
             exerciseId,
           ]),
     );
+    // Zilele de antrenament duc la trofeul „10 antrenamente”.
+    if (done) await this.trophies.evaluate(userId);
   }
 }

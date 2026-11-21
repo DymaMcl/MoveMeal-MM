@@ -10,17 +10,24 @@ import type pg from 'pg';
 import { ModerationService, type ModerationResult } from '../ai/moderation.service.js';
 import type { Role } from '../auth/auth.service.js';
 import { DatabaseService } from '../database/database.service.js';
+import { TrophiesService } from '../engagement/trophies.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { refreshGoalProgress, type GoalProgress } from './goal-progress.js';
 import { decodeImage, MediaService } from './media.service.js';
-import type { CreatePostDto, ReportDto, SocialProfileDto, UpdatePostDto } from './social.dto.js';
+import type {
+  CreatePostDto,
+  ReportDto,
+  SocialProfileDto,
+  TipDto,
+  UpdatePostDto,
+} from './social.dto.js';
 
 export const PAGE_SIZE = 20;
 /** Dupa atatea raportari, postarea este ascunsa automat pana la verificarea unui administrator. */
 export const AUTO_HIDE_REPORTS = 3;
 
-export type PostKind = 'meal' | 'workout' | 'running' | 'cycling' | 'other';
+export type PostKind = 'meal' | 'workout' | 'running' | 'cycling' | 'other' | 'tip';
 
 export interface Author {
   id: string;
@@ -32,8 +39,11 @@ export interface Author {
 export interface PostView {
   id: string;
   author: Author;
-  mediaId: string;
+  /** null = sfat text al echipei (fara fotografie). */
+  mediaId: string | null;
   kind: PostKind;
+  /** Titlul sfatului (doar pentru postarile „tip”). */
+  title: string | null;
   caption: string;
   visibility: 'private' | 'public';
   status: 'published' | 'pending' | 'removed';
@@ -51,8 +61,9 @@ export interface PostView {
 interface PostRow {
   id: string;
   user_id: string;
-  media_id: string;
+  media_id: string | null;
   kind: PostKind;
+  title: string | null;
   caption: string;
   visibility: 'private' | 'public';
   status: 'published' | 'pending' | 'removed';
@@ -71,7 +82,7 @@ interface PostRow {
 
 /** Interogarea comuna; politica RLS de pe „posts” filtreaza ce are voie sa vada utilizatorul. */
 const POST_SELECT = `
-  select p.id, p.user_id, p.media_id, p.kind, p.caption, p.visibility, p.status, p.removed_reason,
+  select p.id, p.user_id, p.media_id, p.kind, p.title, p.caption, p.visibility, p.status, p.removed_reason,
          p.meal_dish, p.meal_nutrients, p.like_count, p.save_count, p.created_at,
          coalesce(np.display_name, sp.display_name, 'MoveMeal') as author_name,
          sp.avatar_media_id as author_avatar,
@@ -89,6 +100,7 @@ export function toPostView(r: PostRow, me: string): PostView {
     author: { id: r.user_id, name: r.author_name, avatarId: r.author_avatar, role: r.author_role },
     mediaId: r.media_id,
     kind: r.kind,
+    title: r.title,
     caption: r.caption,
     visibility: r.visibility,
     status: r.status,
@@ -140,7 +152,9 @@ export interface SocialProfileView {
   showProgress: boolean;
   /** null = ascuns de utilizator sau inca necalculat. */
   progress: { pct: number; kind: 'weight' | 'consistency'; goal: string } | null;
-  stats: { posts: number; likes: number };
+  stats: { posts: number; likes: number; followers: number; following: number };
+  /** Utilizatorul curent urmareste acest profil. */
+  isFollowing: boolean;
   isMe: boolean;
 }
 
@@ -152,6 +166,7 @@ export class CommunityService {
     private readonly moderation: ModerationService,
     private readonly settings: SettingsService,
     private readonly notifications: NotificationsService,
+    private readonly trophies: TrophiesService,
   ) {}
 
   // ------------------------------------------------------------- profil
@@ -255,12 +270,21 @@ export class CommunityService {
       active: boolean;
       posts: number;
       likes: number;
+      followers: number;
+      following: number;
+      is_following: boolean;
     }>(
       `select coalesce(np.display_name, sp.display_name) as display_name, sp.bio,
               sp.avatar_media_id, sp.show_progress, sp.goal, sp.progress_pct, sp.progress_kind,
               public_role(sp.user_id) as role, user_active(sp.user_id) as active,
               (select count(*)::int from posts p where p.user_id = sp.user_id) as posts,
-              (select coalesce(sum(p.like_count), 0)::int from posts p where p.user_id = sp.user_id) as likes
+              (select coalesce(sum(p.like_count), 0)::int from posts p where p.user_id = sp.user_id) as likes,
+              (select count(*)::int from follows f
+               where f.followee_id = sp.user_id and user_active(f.follower_id)) as followers,
+              (select count(*)::int from follows f
+               where f.follower_id = sp.user_id and user_active(f.followee_id)) as following,
+              exists (select 1 from follows f
+                      where f.follower_id = app_user_id() and f.followee_id = sp.user_id) as is_following
        from social_profiles sp
        left join nutritionist_profiles np on np.user_id = sp.user_id
        where sp.user_id = $1`,
@@ -281,14 +305,18 @@ export class CommunityService {
           ? { pct: r.progress_pct, kind: r.progress_kind, goal: r.goal }
           : null,
       // Pentru ceilalti, numarul postarilor vizibile lor (RLS ascunde postarile private).
-      stats: { posts: r.posts, likes: r.likes },
+      stats: { posts: r.posts, likes: r.likes, followers: r.followers, following: r.following },
+      isFollowing: r.is_following,
       isMe,
     };
   }
 
   // ------------------------------------------------------------- postari
 
-  async feed(userId: string, query: { cursor?: string; kind?: PostKind }) {
+  async feed(
+    userId: string,
+    query: { cursor?: string; kind?: PostKind; scope?: 'all' | 'following' },
+  ) {
     const cursor = parseCursor(query.cursor);
     const items = await this.db.asUser(userId, async (c) => {
       const { rows } = await c.query<PostRow>(
@@ -296,9 +324,12 @@ export class CommunityService {
          where p.visibility = 'public' and p.status = 'published' and user_active(p.user_id)
            and ($1::text is null or p.kind = $1)
            and ($2::timestamptz is null or (p.created_at, p.id) < ($2::timestamptz, $3::uuid))
+           and (not $4::boolean or p.user_id = app_user_id() or exists (
+                 select 1 from follows f
+                 where f.follower_id = app_user_id() and f.followee_id = p.user_id))
          order by p.created_at desc, p.id desc
          limit ${PAGE_SIZE}`,
-        [query.kind ?? null, cursor?.at ?? null, cursor?.id ?? null],
+        [query.kind ?? null, cursor?.at ?? null, cursor?.id ?? null, query.scope === 'following'],
       );
       return rows.map((r) => toPostView(r, userId));
     });
@@ -391,7 +422,7 @@ export class CommunityService {
         : 'published';
     await this.recordModeration(userId, check, status === 'pending');
 
-    return this.db.asUser(userId, async (c) => {
+    const view = await this.db.asUser(userId, async (c) => {
       await this.ensureProfile(c);
       let meal: { dish: string; total: Nutrients } | null = null;
       if (dto.foodPhotoId) {
@@ -420,6 +451,36 @@ export class CommunityService {
         ],
       );
       await refreshGoalProgress(c);
+      return this.getIn(c, userId, rows[0].id);
+    });
+    // Prima postare publicata aduce un trofeu.
+    if (view.status === 'published' && view.visibility === 'public') {
+      await this.trophies.evaluate(userId);
+    }
+    return view;
+  }
+
+  /**
+   * Sfat text al echipei (nutritionist sau administrator): fara fotografie si fara verificarea
+   * automata a imaginii; apare direct in comunitate.
+   */
+  async createTip(userId: string, dto: TipDto): Promise<PostView> {
+    const settings = await this.settings.get();
+    if (!settings.communityEnabled) {
+      throw new ForbiddenException({
+        statusCode: 403,
+        code: 'community_disabled',
+        message: 'Comunitatea este dezactivata temporar.',
+      });
+    }
+    return this.db.asUser(userId, async (c) => {
+      await this.ensureProfile(c);
+      const { rows } = await c.query<{ id: string }>(
+        `insert into posts (user_id, media_id, kind, title, caption, visibility, status)
+         values (app_user_id(), null, 'tip', $1, $2, 'public', 'published')
+         returning id`,
+        [dto.title.trim(), dto.caption.trim()],
+      );
       return this.getIn(c, userId, rows[0].id);
     });
   }
@@ -492,22 +553,39 @@ export class CommunityService {
 
   async remove(userId: string, postId: string): Promise<void> {
     await this.db.asUser(userId, async (c) => {
-      // Stergerea fotografiei sterge si postarea (cheie straina „on delete cascade”).
-      const { rowCount } = await c.query(
-        `delete from media where id = (
-           select media_id from posts where id = $1 and user_id = app_user_id())`,
+      const { rows } = await c.query<{ media_id: string | null }>(
+        'select media_id from posts where id = $1 and user_id = app_user_id()',
         [postId],
       );
-      if (!rowCount) throw new NotFoundException('Postarea nu exista.');
+      if (!rows[0]) throw new NotFoundException('Postarea nu exista.');
+      // Stergerea fotografiei sterge si postarea (cascada); sfaturile text se sterg direct.
+      if (rows[0].media_id) {
+        await c.query('delete from media where id = $1', [rows[0].media_id]);
+      } else {
+        await c.query('delete from posts where id = $1 and user_id = app_user_id()', [postId]);
+      }
     });
   }
 
   async like(userId: string, postId: string, value: boolean) {
-    return this.toggle(userId, postId, 'post_likes', value);
+    const result = await this.toggle(userId, postId, 'post_likes', value);
+    if (value && result.added && result.authorId !== userId) {
+      // Autorul afla cine i-a apreciat postarea (o singura data pentru aceeasi persoana).
+      await this.notifications
+        .notifyOnce(
+          result.authorId,
+          'post_liked',
+          { postId, userId, name: result.actorName },
+          { postId, userId },
+        )
+        .catch(() => undefined);
+    }
+    return { value: result.value, likeCount: result.likeCount, saveCount: result.saveCount };
   }
 
   async save(userId: string, postId: string, value: boolean) {
-    return this.toggle(userId, postId, 'post_saves', value);
+    const result = await this.toggle(userId, postId, 'post_saves', value);
+    return { value: result.value, likeCount: result.likeCount, saveCount: result.saveCount };
   }
 
   private async toggle(
@@ -518,13 +596,18 @@ export class CommunityService {
   ) {
     return this.db.asUser(userId, async (c) => {
       // Doar postarile pe care utilizatorul le poate vedea (politica RLS).
-      const visible = await c.query('select 1 from posts where id = $1', [postId]);
+      const visible = await c.query<{ user_id: string }>(
+        'select user_id from posts where id = $1',
+        [postId],
+      );
       if (!visible.rowCount) throw new NotFoundException('Postarea nu exista.');
+      let added = false;
       if (value) {
-        await c.query(
+        const inserted = await c.query(
           `insert into ${table} (user_id, post_id) values (app_user_id(), $1) on conflict do nothing`,
           [postId],
         );
+        added = (inserted.rowCount ?? 0) > 0;
       } else {
         await c.query(`delete from ${table} where user_id = app_user_id() and post_id = $1`, [
           postId,
@@ -534,8 +617,18 @@ export class CommunityService {
         'select like_count, save_count from posts where id = $1',
         [postId],
       );
+      const actor = await c.query<{ name: string }>(
+        `select coalesce(np.display_name, sp.display_name, pr.name, 'MoveMeal') as name
+         from (select app_user_id() as id) u
+         left join social_profiles sp on sp.user_id = u.id
+         left join nutritionist_profiles np on np.user_id = u.id
+         left join profiles pr on pr.user_id = u.id`,
+      );
       return {
         value,
+        added,
+        authorId: visible.rows[0].user_id,
+        actorName: actor.rows[0]?.name ?? 'MoveMeal',
         likeCount: rows[0].like_count,
         saveCount: rows[0].save_count,
       };

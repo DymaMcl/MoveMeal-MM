@@ -1,4 +1,8 @@
-export type WorkoutLocation = 'home' | 'gym';
+/** mixed = unele zile acasa, celelalte la sala (vezi WorkoutPreferences.homeDays). */
+export type WorkoutLocation = 'home' | 'gym' | 'mixed';
+
+/** Locul unei sedinte concrete. */
+export type SessionLocation = 'home' | 'gym';
 
 /** Nivelul ales: usor (2–3 zile), moderat (3–4 zile), intens (5 zile). */
 export type WorkoutLevel = 'light' | 'moderate' | 'intense';
@@ -54,6 +58,8 @@ export interface WorkoutPreferences {
   location: WorkoutLocation;
   level: WorkoutLevel;
   days: Weekday[];
+  /** Doar pentru antrenamentul mixt: zilele (dintre `days`) de acasa; celelalte sunt la sala. */
+  homeDays?: Weekday[];
   equipment: Equipment[];
   sports: Sport[];
   limitations: Limitation[];
@@ -76,6 +82,8 @@ export interface Prescription {
 
 export interface WorkoutSession {
   weekday: Weekday;
+  /** Unde are loc sedinta (lipseste in programele create inainte de antrenamentul mixt). */
+  location?: SessionLocation;
   template: SessionTemplate;
   exercises: Prescription[];
 }
