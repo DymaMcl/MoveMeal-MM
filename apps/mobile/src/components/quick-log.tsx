@@ -309,10 +309,12 @@ export function SaveMealSheet({
 /** Bilantul zilei si prognoza „daca fiecare zi ar fi ca azi”. */
 export function CloseDaySheet({
   visible,
+  day,
   entries,
   onClose,
 }: {
   visible: boolean;
+  day: string;
   entries: FoodLogEntry[];
   onClose: () => void;
 }) {
@@ -320,6 +322,7 @@ export function CloseDaySheet({
   const theme = useTheme();
   const { session, profile, plan } = useAppState();
   const [weightKg, setWeightKg] = useState<number | null>(null);
+  const [burnedKcal, setBurnedKcal] = useState(0);
   const [loading, setLoading] = useState(false);
 
   // Ultima cantarire; fara cantariri se foloseste greutatea din profil.
@@ -331,7 +334,12 @@ export function CloseDaySheet({
       .then((list) => setWeightKg(list.at(-1)?.weightKg ?? profile.weightKg))
       .catch(() => setWeightKg(profile.weightKg))
       .finally(() => setLoading(false));
-  }, [visible, session, profile]);
+    // Miscarea zilei (activitati, pasi, antrenament) intra in bilant.
+    api
+      .activity(session.token, day)
+      .then((a) => setBurnedKcal(a.totalKcal))
+      .catch(() => setBurnedKcal(0));
+  }, [visible, session, profile, day]);
 
   const s = useStyles((th) => ({
     hero: {
@@ -368,6 +376,7 @@ export function CloseDaySheet({
           tdee: plan.tdee,
           weightKg,
           sex: profile.sex,
+          burnedKcal,
         });
   const kg = (n: number) => `${formatNumber(n, 1)} ${t('common.kg')}`;
   const signedKg = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${kg(Math.abs(n))}`;
@@ -448,6 +457,14 @@ export function CloseDaySheet({
                   {plan.tdee} {t('common.kcal')}
                 </Text>
               </View>
+              {burnedKcal > 0 ? (
+                <View style={s.row}>
+                  <Text style={s.rowLabel}>{t('quick.burned')}</Text>
+                  <Text style={s.rowValue}>
+                    −{burnedKcal} {t('common.kcal')}
+                  </Text>
+                </View>
+              ) : null}
               <View style={s.row}>
                 <Text style={s.rowLabel}>{t('quick.balance')}</Text>
                 <Text style={s.rowValue}>

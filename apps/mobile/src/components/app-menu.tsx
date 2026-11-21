@@ -133,6 +133,20 @@ export function AppMenuProvider({ children }: { children: ReactNode }) {
         path: '/calories',
       },
       {
+        key: 'activity',
+        label: t('menu.activity'),
+        icon: 'flame-outline',
+        href: '/activity',
+        path: '/activity',
+      },
+      {
+        key: 'fasting',
+        label: t('menu.fasting'),
+        icon: 'timer-outline',
+        href: '/fasting',
+        path: '/fasting',
+      },
+      {
         key: 'foodPhoto',
         label: t('menu.foodPhoto'),
         icon: 'camera-outline',

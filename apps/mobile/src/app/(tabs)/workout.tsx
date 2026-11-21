@@ -8,6 +8,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ExerciseRow } from '@/components/exercise-row';
 import { Button, IconCircle, Notice } from '@/components/ui';
 import { useI18n } from '@/i18n';
+import { useAppState } from '@/state/app-state';
 import { currentWeek, isoDate, weekdayOf } from '@/state/dates';
 import { isDone, useWorkout } from '@/state/workout-state';
 import { useStyles, useTheme } from '@/theme';
@@ -17,6 +18,7 @@ export default function Workout() {
   const { t } = useI18n();
   const theme = useTheme();
   const { status, program, done, toggle, reload } = useWorkout();
+  const { plan } = useAppState();
   const week = useMemo(() => currentWeek(), []);
   const today = weekdayOf(new Date());
   const [selected, setSelected] = useState<Weekday>(today);
@@ -25,6 +27,14 @@ export default function Workout() {
     safe: { flex: 1, backgroundColor: th.colors.background },
     content: { padding: th.spacing.lg, gap: th.spacing.md, paddingBottom: th.spacing.xl },
     header: { flexDirection: 'row', alignItems: 'center', gap: th.spacing.sm },
+    burn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: th.spacing.sm,
+      padding: th.spacing.md,
+      borderRadius: th.radius.md,
+      backgroundColor: th.colors.accentSoft,
+    },
     title: { ...th.font.title, flex: 1 },
     iconButton: {
       width: 44,
@@ -180,6 +190,20 @@ export default function Workout() {
     <SafeAreaView style={s.safe} edges={['top']}>
       <ScrollView contentContainerStyle={s.content}>
         {header}
+
+        {plan && plan.exerciseKcal > 0 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push('/activity')}
+            style={s.burn}
+          >
+            <Ionicons name="flame" size={20} color={theme.colors.accent} />
+            <Text style={[theme.font.body, { flex: 1 }]}>
+              {t('workout.burnGoal', { kcal: plan.exerciseKcal })}
+            </Text>
+            <Ionicons name="chevron-forward" size={18} color={theme.colors.textMuted} />
+          </Pressable>
+        ) : null}
 
         <View style={s.week}>
           {week.map((date, i) => {

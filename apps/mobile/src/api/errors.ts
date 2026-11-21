@@ -39,6 +39,14 @@ export function errorKey(error: unknown): string {
       return 'errors.nothingToCopy';
     case 'saved_meals_limit':
       return 'errors.savedMealsLimit';
+    case 'fasting_active':
+      return 'errors.fastingActive';
+    case 'fasting_blocked':
+      return 'errors.fastingBlocked';
+    case 'fasting_start':
+      return 'errors.fastingStart';
+    case 'day_not_editable':
+      return 'errors.dayNotEditable';
     case 'content_rejected':
       // Motivul respingerii (de exemplu „adult”, „not_relevant”) are un mesaj propriu.
       return `social.rejected.${String(error.data.reason ?? 'unsafe')}`;

@@ -446,6 +446,7 @@ export default function Calories() {
 
       <CloseDaySheet
         visible={closeOpen}
+        day={day}
         entries={entries ?? []}
         onClose={() => setCloseOpen(false)}
       />

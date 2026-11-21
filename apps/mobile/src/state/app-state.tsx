@@ -10,7 +10,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { calculateEnergyPlan, type EnergyPlan, type EnergyProfile } from '@movemeal/shared';
+import {
+  calculateEnergyPlan,
+  type EnergyPlan,
+  type EnergyProfile,
+  type LossApproach,
+} from '@movemeal/shared';
 import { api, ApiError, setApiUrl, type ProfileResponse, type Role } from '@/api/client';
 
 /**
@@ -64,6 +69,7 @@ interface AppStateValue {
   completeOnboarding: () => Promise<void>;
   resetProfile: () => void;
   refreshProfile: () => Promise<void>;
+  setLossApproach: (approach: LossApproach) => Promise<void>;
 }
 
 const AppStateContext = createContext<AppStateValue | null>(null);
@@ -221,6 +227,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       delete payload.targetWeightKg;
       delete payload.weeks;
     }
+    if (payload.goal !== 'lose') delete payload.lossApproach;
     await applyRemote(await api.saveProfile(session.token, payload));
   }, [draft, session, applyRemote]);
 
@@ -236,6 +243,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (!session) return;
     await applyRemote(await api.getProfile(session.token));
   }, [session, applyRemote]);
+
+  const setLossApproach = useCallback(
+    async (approach: LossApproach) => {
+      if (!session) return;
+      await applyRemote(await api.setLossApproach(session.token, approach));
+    },
+    [session, applyRemote],
+  );
 
   // Fara conexiune se foloseste calculul local, cu aceleasi formule ca serverul.
   const plan = useMemo(
@@ -258,6 +273,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       resetProfile,
       refreshProfile,
+      setLossApproach,
     }),
     [
       ready,
@@ -273,6 +289,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       completeOnboarding,
       resetProfile,
       refreshProfile,
+      setLossApproach,
     ],
   );
 

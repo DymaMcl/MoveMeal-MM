@@ -1,9 +1,19 @@
 import type { Goal } from '@movemeal/shared';
 
-/** Pasii chestionarului; pasul „target” apare doar pentru slabire si crestere in greutate. */
+/**
+ * Pasii chestionarului; pasul „target” apare doar pentru slabire si crestere in greutate, iar
+ * „approach” (dieta / exercitii / mixt) doar pentru slabire.
+ */
 export function onboardingSteps(goal?: Goal) {
   const withTarget = goal === 'lose' || goal === 'gain';
-  const steps = ['personal', 'body', 'goal', ...(withTarget ? ['target'] : []), 'activity'];
+  const steps = [
+    'personal',
+    'body',
+    'goal',
+    ...(withTarget ? ['target'] : []),
+    'activity',
+    ...(goal === 'lose' ? ['approach'] : []),
+  ];
   return {
     total: steps.length,
     index: (step: string) => steps.indexOf(step) + 1,

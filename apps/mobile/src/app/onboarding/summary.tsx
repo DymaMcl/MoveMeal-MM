@@ -109,6 +109,22 @@ export default function SummaryStep() {
             {plan.tdee} {t('common.kcal')}
           </Text>
         </View>
+        {plan.exerciseKcal > 0 ? (
+          <View style={s.row}>
+            <Text style={s.rowLabel}>{t('onboarding.summary.exercise')}</Text>
+            <Text style={s.rowValue}>
+              {plan.exerciseKcal} {t('common.kcal')}
+            </Text>
+          </View>
+        ) : null}
+        {draft.goal === 'lose' ? (
+          <View style={s.row}>
+            <Text style={s.rowLabel}>{t('onboarding.summary.approach')}</Text>
+            <Text style={s.rowValue}>
+              {t(`onboarding.approach.${draft.lossApproach ?? 'diet'}`)}
+            </Text>
+          </View>
+        ) : null}
       </LinearGradient>
       <View style={s.macros}>
         {macros.map((m) => (

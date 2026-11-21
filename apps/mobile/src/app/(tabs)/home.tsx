@@ -8,7 +8,7 @@ import { CalorieRing } from '@/components/calorie-ring';
 import { Card, IconCircle, Notice, type IconName } from '@/components/ui';
 import { formatNumber, localeOf, useI18n } from '@/i18n';
 import { StepsSheet } from '@/components/steps';
-import { api, type Appointment, type ProgressResponse } from '@/api/client';
+import { api, type ActivityDay, type Appointment, type ProgressResponse } from '@/api/client';
 import { useAppState } from '@/state/app-state';
 import { formatDay, isoDate, weekdayOf } from '@/state/dates';
 import { SLOT_TO_LOG, sumEntries, useNutrition } from '@/state/nutrition-state';
@@ -118,6 +118,8 @@ export default function Home() {
   /** Pasii de azi (null = inca neintrodusi). */
   const [stepsToday, setStepsToday] = useState<number | null>(null);
   const [stepsOpen, setStepsOpen] = useState(false);
+  /** Arderea zilei (activitati, pasi, antrenament). */
+  const [activity, setActivity] = useState<ActivityDay | null>(null);
 
   // Ajustarea propusa (daca exista) se reincarca la fiecare intoarcere pe pagina.
   useFocusEffect(
@@ -127,6 +129,10 @@ export default function Home() {
       api
         .steps(session.token, 1)
         .then((days) => setStepsToday(days.find((d) => d.day === today)?.steps ?? null))
+        .catch(() => undefined);
+      api
+        .activity(session.token, today)
+        .then(setActivity)
         .catch(() => undefined);
       api
         .progress(session.token)
@@ -457,15 +463,21 @@ export default function Home() {
           />
           <StatTile
             icon="flame"
-            label={t('home.burned')}
-            value="–"
+            label={
+              activity?.goalKcal
+                ? t('home.burnedOfGoal', { goal: activity.goalKcal })
+                : t('home.burned')
+            }
+            value={activity ? `${activity.totalKcal}` : '–'}
+            onPress={() => router.push('/activity')}
             color={theme.colors.accent}
             background={theme.colors.accentSoft}
           />
           <StatTile
             icon="time"
             label={t('home.activeMinutes')}
-            value="–"
+            value={activity ? `${activity.items.reduce((sum, i) => sum + i.minutes, 0)}` : '–'}
+            onPress={() => router.push('/activity')}
             color={theme.colors.primary}
             background={theme.colors.primarySoft}
           />
@@ -487,7 +499,18 @@ export default function Home() {
 
         <Notice tone="info">{t('common.disclaimer')}</Notice>
       </ScrollView>
-      <StepsSheet visible={stepsOpen} onClose={() => setStepsOpen(false)} onSaved={setStepsToday} />
+      <StepsSheet
+        visible={stepsOpen}
+        onClose={() => setStepsOpen(false)}
+        onSaved={(steps) => {
+          setStepsToday(steps);
+          if (session)
+            api
+              .activity(session.token)
+              .then(setActivity)
+              .catch(() => undefined);
+        }}
+      />
     </SafeAreaView>
   );
 }

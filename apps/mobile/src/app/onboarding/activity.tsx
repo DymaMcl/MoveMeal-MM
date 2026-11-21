@@ -32,7 +32,7 @@ export default function ActivityStep() {
   function onContinue() {
     if (!level) return;
     updateDraft({ activityLevel: level });
-    router.push('/onboarding/summary');
+    router.push(draft.goal === 'lose' ? '/onboarding/approach' : '/onboarding/summary');
   }
 
   return (

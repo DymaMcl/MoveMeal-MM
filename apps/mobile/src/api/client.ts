@@ -1,5 +1,9 @@
 import type {
+  ActivityId,
   EnergyPlan,
+  FastingBlock,
+  FastingPlanId,
+  LossApproach,
   TrophyId,
   EnergyProfile,
   FoodCategory,
@@ -279,6 +283,13 @@ export const api = {
   getProfile: (token: string) => request<ProfileResponse>('/me/profile', { token }),
   saveProfile: (token: string, profile: EnergyProfile & { name: string }) =>
     request<ProfileResponse>('/me/profile', { method: 'PUT', body: profile, token }),
+  /** Slabire: din alimentatie, din exercitii sau mixt (tinta nutritionistului ramane). */
+  setLossApproach: (token: string, lossApproach: LossApproach) =>
+    request<ProfileResponse>('/me/profile/loss-approach', {
+      method: 'PUT',
+      body: { lossApproach },
+      token,
+    }),
   getWorkout: (token: string) => request<WorkoutProgram>('/me/workout', { token }),
   saveWorkout: (token: string, preferences: WorkoutPreferences) =>
     request<WorkoutProgram>('/me/workout', { method: 'PUT', body: preferences, token }),
@@ -419,6 +430,31 @@ export const api = {
   setSteps: (token: string, body: { day: string; steps: number; source: 'manual' | 'device' }) =>
     request<{ day: StepsDay; trophies: TrophyId[] }>('/me/steps', { method: 'PUT', body, token }),
   myTrophies: (token: string) => request<TrophyStatus[]>('/me/trophies', { token }),
+
+  // Miscare (calorii arse) si post intermitent
+  activity: (token: string, day?: string) =>
+    request<ActivityDay>(`/me/activity${day ? `?day=${day}` : ''}`, { token }),
+  addActivity: (
+    token: string,
+    body: { day: string; activityId: ActivityId; minutes: number; kcal?: number },
+  ) =>
+    request<{ entry: ActivityEntry; trophies: TrophyId[] }>('/me/activity', {
+      method: 'POST',
+      body,
+      token,
+    }),
+  removeActivity: (token: string, id: string) =>
+    request<void>(`/me/activity/${id}`, { method: 'DELETE', token }),
+  fasting: (token: string) => request<FastingState>('/me/fasting', { token }),
+  startFast: (token: string, body: { planId: FastingPlanId; startedAt?: string }) =>
+    request<FastingSession>('/me/fasting/start', { method: 'POST', body, token }),
+  stopFast: (token: string) =>
+    request<{ session: FastingSession; trophies: TrophyId[] }>('/me/fasting/stop', {
+      method: 'POST',
+      token,
+    }),
+  removeFast: (token: string, id: string) =>
+    request<void>(`/me/fasting/${id}`, { method: 'DELETE', token }),
   userTrophies: (token: string, id: string) =>
     request<TrophyStatus[]>(`/users/${id}/trophies`, { token }),
 
@@ -751,6 +787,43 @@ export interface NewsItem {
   body: string;
   createdAt: string;
   unread: boolean;
+}
+
+export interface ActivityEntry {
+  id: string;
+  activityId: ActivityId;
+  minutes: number;
+  kcal: number;
+}
+
+/** Arderea unei zile: activitati, pasi peste pragul obisnuit si antrenamentul bifat. */
+export interface ActivityDay {
+  day: string;
+  items: ActivityEntry[];
+  steps: number;
+  stepsKcal: number;
+  workoutExercises: number;
+  workoutKcal: number;
+  totalKcal: number;
+  goalKcal: number;
+  lossApproach: LossApproach | null;
+  week: { day: string; kcal: number }[];
+}
+
+export interface FastingSession {
+  id: string;
+  planId: FastingPlanId;
+  plannedHours: number;
+  startedAt: string;
+  endedAt: string | null;
+  completed: boolean;
+}
+
+export interface FastingState {
+  active: FastingSession | null;
+  history: FastingSession[];
+  block: FastingBlock;
+  stats: { completed: number; longestHours: number };
 }
 
 export interface StepsDay {
